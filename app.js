@@ -3,13 +3,41 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const store = { get: k => { try { return localStorage.getItem(k) } catch (e) { return null } }, set: (k, v) => { try { localStorage.setItem(k, v) } catch (e) { } }, del: k => { try { localStorage.removeItem(k) } catch (e) { } } };
 const qs = k => new URLSearchParams(location.search).get(k);
+const STATUS_TEXT = { list: "Loading…", headInit: "Logging in…", createApproval: "Creating link…", getApproval: "Loading your form…", submitRequest: "Sending your request…", getHosting: "Loading…", saveHosting: "Saving…", save: "Saving…", cancel: "Cancelling…", markAck: "Updating…", createHosting: "Creating…", updateHosting: "Saving…", makePdf: "Preparing PDF…", backup: "Backing up…" };
+const DONE_TEXT = { list: "", headInit: "Logged in", createApproval: "Link created", submitRequest: "Sent", saveHosting: "Saved", save: "Saved", cancel: "Cancelled", createHosting: "Created", updateHosting: "Saved", makePdf: "PDF ready", backup: "Backup saved" };
+let _busy = 0, _stT = null;
+function showStatus(text, kind) {
+  let el = document.getElementById("statusBar");
+  if (!el) { el = document.createElement("div"); el.id = "statusBar"; document.body.appendChild(el) }
+  clearTimeout(_stT);
+  el.className = "show" + (kind ? " " + kind : "");
+  el.innerHTML = (kind === "busy" ? '<span class="spin"></span>' : kind === "ok" ? "✓" : kind === "err" ? "⚠" : "") + `<span>${esc(text)}</span>`;
+  if (kind !== "busy") _stT = setTimeout(() => el.className = "", kind === "err" ? 5000 : 1800);
+}
 async function api(action, body = {}) {
   const url = window.TOW_API;
-  if (!url || url.indexOf("PASTE") >= 0) throw new Error("This page isn't connected yet (config.js).");
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, ...body }) });
-  const j = await res.json();
-  if (!j.ok) throw new Error(j.error || "Something went wrong");
-  return j;
+  if (!url || url.indexOf("PASTE") >= 0) { showStatus("This page isn't connected yet (config.js)", "err"); throw new Error("This page isn't connected yet (config.js).") }
+  _busy++; showStatus(STATUS_TEXT[action] || "Working…", "busy");
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, ...body }) });
+    let j; try { j = await res.json() } catch (e) { throw new Error("Couldn't reach the server. Check the web app is deployed with access set to Anyone.") }
+    if (!j.ok) throw new Error(j.error === "Wrong passcode" ? "Wrong passcode. Check capital letters and try again." : (j.error || "Something went wrong"));
+    _busy--; if (!_busy) { DONE_TEXT[action] ? showStatus(DONE_TEXT[action], "ok") : (document.getElementById("statusBar") || {}).className = "" }
+    return j;
+  } catch (e) {
+    _busy = Math.max(0, _busy - 1);
+    const m = /Failed to fetch|NetworkError|Load failed/i.test(e.message) ? "No connection to the server. Check your internet and try again." : e.message;
+    showStatus(m, "err"); throw new Error(m);
+  }
+}
+const EYE_ON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+function pwToggle(id) {
+  const inp = document.getElementById(id); if (!inp) return;
+  const wrap = document.createElement("div"); wrap.className = "pw"; inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+  const b = document.createElement("button"); b.type = "button"; b.className = "pwbtn"; b.title = "Show / hide"; b.innerHTML = EYE_ON; wrap.appendChild(b);
+  b.onclick = () => { const show = inp.type === "password"; inp.type = show ? "text" : "password"; b.innerHTML = show ? EYE_OFF_ICON : EYE_ON; inp.focus() };
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { const btn = document.getElementById(id === "hkey" ? "loginBtn" : "loginBtn"); btn && btn.click() } });
 }
 const toD = s => { if (!s) return null; const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/); return m ? new Date(+m[1], m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) : null };
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

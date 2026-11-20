@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>TOW Apartment Stay Log · Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261120d">
 <link rel="icon" type="image/png" href="favicon.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -136,8 +136,8 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 <datalist id="unitList"><option>1</option><option>2</option><option>3</option><option>4</option><option>2 &amp; 4</option></datalist>
 <div class="toast" id="toast"></div>
 
-<script src="config.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=20261120d"></script>
+<script src="app.js?v=20261120d"></script>
 <script>
 let KEY = "", S = [], HS = [], MINS = [], SITE = "", TAB = "inbox", cur = null, LAST_BACKUP = null;
 const STAY_STATUS = ["Requested", "Booked", "Confirmed", "Checked-in", "Completed", "Cancelled"];
@@ -154,7 +154,7 @@ $("loginBtn").onclick = async () => {
   catch (e) { $("loginMsg").textContent = e.message; if (/passcode/i.test(e.message)) store.del("tow-admin-key") }
   finally { $("loginBtn").disabled = false }
 };
-pwToggle("passcode");
+if (typeof pwToggle === "function") pwToggle("passcode"); else alert("Please upload the latest app.js and style.css to GitHub as well.");
 $("logout").onclick = e => { e.preventDefault(); store.del("tow-admin-key"); location.reload() };
 async function load() { const j = await call("list"); S = j.stays; HS = j.hosting; MINS = j.ministries; SITE = j.site; LAST_BACKUP = j.lastBackup || null; render(); showBackup() }
 $("refreshBtn").onclick = async () => { try { await load(); toast("Up to date") } catch (e) { toast(e.message) } };
