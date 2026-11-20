@@ -85,10 +85,10 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 <body>
 <div class="wrap" id="loginView">
   <section class="card" style="margin-top:50px">
-    <img class="mark" src="logo-mark.png" alt="TOW" style="margin:0 0 8px">
-    <div class="eyebrow">Tabernacle of Worship</div>
-    <h1>Apartment Stay Log</h1>
-    <p class="muted small" style="margin-top:0">Admin use only.</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px">
+      <div><div class="eyebrow">Tabernacle of Worship</div><h1 style="margin:6px 0 2px;font-size:26px;white-space:nowrap">Apartment Stay Log</h1><div class="muted small">Admin use only.</div></div>
+      <img src="logo-mark.png" alt="TOW" style="width:56px;height:56px;flex:none">
+    </div>
     <div class="f"><label>Admin passcode</label><input id="passcode" type="password"></div>
     <label class="inline" style="margin:0 0 6px"><input type="checkbox" id="remember" checked> Remember on this device</label>
     <button class="btn pri" id="loginBtn">Open log</button>
@@ -149,10 +149,12 @@ const call = (action, body = {}) => api(action, { key: KEY, ...body });
 /* ---------- login ---------- */
 $("passcode").value = store.get("tow-admin-key") || "";
 $("loginBtn").onclick = async () => {
-  KEY = $("passcode").value; $("loginMsg").textContent = "Connecting…";
+  KEY = $("passcode").value.trim(); if (!KEY) return $("loginMsg").textContent = "Please type the admin passcode."; $("loginMsg").textContent = "Logging in…"; $("loginBtn").disabled = true;
   try { await load(); if ($("remember").checked) store.set("tow-admin-key", KEY); else store.del("tow-admin-key"); $("loginView").classList.add("hide"); $("appView").classList.remove("hide"); openFromHash() }
-  catch (e) { $("loginMsg").textContent = e.message }
+  catch (e) { $("loginMsg").textContent = e.message; if (/passcode/i.test(e.message)) store.del("tow-admin-key") }
+  finally { $("loginBtn").disabled = false }
 };
+pwToggle("passcode");
 $("logout").onclick = e => { e.preventDefault(); store.del("tow-admin-key"); location.reload() };
 if (store.get("tow-admin-key")) $("loginBtn").click();
 async function load() { const j = await call("list"); S = j.stays; HS = j.hosting; MINS = j.ministries; SITE = j.site; LAST_BACKUP = j.lastBackup || null; render(); showBackup() }
