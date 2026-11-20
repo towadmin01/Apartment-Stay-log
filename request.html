@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TOW Apartment Stay · Request</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" href="favicon.png">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img class="mark" src="logo-mark.png" alt="TOW">
+    <div class="eyebrow">Tabernacle of Worship</div>
+    <h1>Apartment Stay</h1>
+    <div class="sub">Booking, Terms &amp; Conditions</div>
+  </header>
+
+  <div class="card center" id="loading"><span class="muted">Loading your stay link…</span></div>
+  <div class="card hide" id="error"><div class="note warn" id="errText"></div></div>
+
+  <form id="form" class="hide" autocomplete="on">
+    <div class="stamp" style="margin-bottom:16px"><span>✔</span><span id="stamp"></span></div>
+
+    <section class="card">
+      <h2><span class="n">1</span>Booking details</h2>
+      <div class="stay" id="stayInfo"></div>
+      <div class="f"><label>Your name</label><input id="name" autocomplete="name" required></div>
+      <div class="row">
+        <div class="f"><label>Contact no.</label><input id="phone" inputmode="tel" autocomplete="tel" required></div>
+        <div class="f"><label>No. of guests (max 5)</label><input id="pax" type="number" min="1" max="5" value="1"></div>
+      </div>
+      <div class="f"><label>Purpose of stay</label><input id="purpose" placeholder="e.g. Saturday rehearsal & Sunday service"></div>
+      <div class="f"><label>Name of main guest</label><input id="mainGuest"><label class="inline"><input type="checkbox" id="same"> Same as my name</label></div>
+      <div class="f"><label>Vehicle no. (optional)</label><input id="car"></div>
+      <div class="f"><label>Remarks (optional)</label><textarea id="remarks"></textarea></div>
+      <p class="small muted" style="margin:10px 0 0;font-style:italic">Every stay is offered in the spirit of hospitality. We warmly encourage a love gift to help us care for the units.</p>
+    </section>
+
+    <section class="card terms">
+      <h2><span class="n">2</span>Terms &amp; Conditions</h2>
+      <p class="why" id="why"></p>
+      <ul class="tc" id="terms"></ul>
+      <label class="check" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:13.5px"><input type="checkbox" id="agree"><span>I have read and agree to these Terms &amp; Conditions.</span></label>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">3</span>Love gift</h2>
+      <div class="gift-hero">
+        <div class="lb">Suggested minimum love gift</div>
+        <div class="big" id="rateBig"></div>
+        <div class="sm" id="rateSub"></div>
+      </div>
+      <div class="f"><label>Your love gift (RM)</label><input id="gift" type="number" min="0" step="10" inputmode="numeric"><div class="hint">A love gift is encouraged, not compulsory. Please give as you are able. You're welcome to give more.</div></div>
+      <div class="pay">
+        <img src="tng-qr.png" alt="Touch 'n Go QR">
+        <div class="kv"><div class="muted">Scan with Touch 'n Go, or transfer to</div><b>TABERNACLE OF WORSHIP</b><br>Hong Leong Bank (Malaysia)<br><b>371 000 128 43</b> <button type="button" class="mini" id="copyAcc">Copy</button></div>
+      </div>
+      <p class="fine">Your reference number appears after you submit. Kindly give before check-in and share the slip with the Church Admin.</p>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">4</span>Signature</h2>
+      <div class="sig" id="sig"><canvas></canvas><div class="ph">Sign here with your finger</div><button type="button" class="mini clr">Clear</button></div>
+    </section>
+
+    <button class="btn pri" type="submit" id="submitBtn">Submit request</button>
+    <div class="msg" id="msg"></div>
+  </form>
+
+  <div class="card center hide" id="done">
+    <div class="big-ok">🙏</div>
+    <h2 style="justify-content:center;margin-top:8px">Thank you! Request sent</h2>
+    <p>Your reference: <b id="refOut"></b></p>
+    <p class="muted small">The Church Admin will assign your unit and send the confirmation and check-in notes through your Ministry Head.</p>
+    <div class="note" id="doneGift" style="text-align:left"></div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+let A = null, pad = null, giftTouched = false;
+const t = qs("t");
+$("why").innerHTML = WHY + `<span class="verse">${VERSE}</span>`;
+$("terms").innerHTML = TERMS.map(x => `<li>${x}</li>`).join("");
+$("copyAcc").onclick = e => copyText("37100012843", e.target);
+
+(async () => {
+  try {
+    if (!t) throw new Error("This page needs the link from your Ministry Head.");
+    A = (await api("getApproval", { t })).approval;
+    $("stamp").innerHTML = `Approved by <b>${esc(A["Ministry Head"])}</b> · ${esc(A["Ministry"])} · ${esc(fmtShort(A["Created At"]))}`;
+    const n = nightsOf(A["Check-in"], A["Check-out"]);
+    $("stayInfo").innerHTML = `<div class="cat">${esc(A["Category"])}</div>
+      <div class="ln"><span>Check-in</span><b>${esc(fmt(A["Check-in"]))}</b></div><div class="key">${esc(keyShort(A["Check-in"], "check-in"))}</div>
+      <div class="ln"><span>Check-out</span><b>${esc(fmt(A["Check-out"]))}</b></div><div class="key">${esc(keyShort(A["Check-out"], "check-out"))}</div>
+      <div class="foot">${n} night${n === 1 ? "" : "s"} · Your unit will be assigned by the Church Admin</div>`;
+    $("name").value = A["Member Name"] || "";
+    $("loading").classList.add("hide"); $("form").classList.remove("hide");
+    pad = sigPad($("sig")); setTimeout(pad.resize, 50);
+    render();
+  } catch (e) { $("loading").classList.add("hide"); $("error").classList.remove("hide"); $("errText").textContent = e.message }
+})();
+
+const minTotal = () => A ? (A.rate || 0) * nightsOf(A["Check-in"], A["Check-out"]) : 0;
+function render() {
+  if ($("same").checked) $("mainGuest").value = $("name").value;
+  const n = nightsOf(A["Check-in"], A["Check-out"]);
+  $("rateBig").innerHTML = `RM${A.rate} <small>per night</small>`;
+  $("rateSub").textContent = `For ${n} night${n === 1 ? "" : "s"}, that's a suggested RM${minTotal()}`;
+  if (!giftTouched) $("gift").value = minTotal();
+  if (+$("pax").value > 5) $("pax").value = 5;
+}
+$("form").addEventListener("input", e => { if (e.target.id === "gift") giftTouched = true; if (e.target.id === "mainGuest") $("same").checked = false; render() });
+$("same").addEventListener("change", render);
+
+$("form").onsubmit = async e => {
+  e.preventDefault();
+  const miss = [];
+  if (!$("name").value.trim()) miss.push("your name");
+  if (!$("phone").value.trim()) miss.push("contact no.");
+  if (!$("agree").checked) miss.push("agree to the Terms & Conditions");
+  if (pad.empty) miss.push("your signature");
+  const gift = +$("gift").value || 0;
+  if (miss.length) { $("msg").textContent = "Please complete: " + miss.join(", "); return }
+  $("submitBtn").disabled = true; $("msg").textContent = "Sending…";
+  try {
+    const form = { name: $("name").value.trim(), phone: $("phone").value.trim(), pax: $("pax").value, purpose: $("purpose").value.trim(), mainGuest: $("mainGuest").value.trim(), car: $("car").value.trim(), remarks: $("remarks").value.trim(), gift, agree: true };
+    const j = await api("submitRequest", { t, form, signature: pad.data() });
+    $("form").classList.add("hide"); $("done").classList.remove("hide"); window.scrollTo(0, 0);
+    $("refOut").textContent = j.stay.id;
+    $("doneGift").innerHTML = minTotal() || gift ? `💝 Love gift: <b>RM${gift}</b><br>${CHURCH_BANK}<br>Reference: <b>${esc(j.stay.id)}</b>` : "";
+  } catch (err) { $("msg").textContent = err.message; $("submitBtn").disabled = false }
+};
+</script>
+</body>
+</html>

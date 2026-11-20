@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TOW · Guest Speaker Hosting</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" href="favicon.png">
+<style>.hg+.hg{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}.hgt{font:600 15px "Cormorant Garamond",serif;color:var(--brown);margin-bottom:6px}.hg .check{margin-top:8px}</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img class="mark" src="logo-mark.png" alt="TOW">
+    <div class="eyebrow">Tabernacle of Worship</div>
+    <h1>Guest Speaker Hosting</h1>
+    <div class="sub">In-house checklist · Pastors, Guest Speakers &amp; Mission Pastors</div>
+  </header>
+
+  <div class="card center" id="loading"><span class="muted">Loading…</span></div>
+  <div class="card hide" id="error"><div class="note warn" id="errText"></div></div>
+
+  <div id="form" class="hide">
+    <div class="note" id="status" style="margin-bottom:16px"></div>
+
+    <section class="card">
+      <h2><span class="n">1</span>Guest &amp; host</h2>
+      <div class="f"><label>Guest speaker / pastor name</label><input data-f="Guest Name"></div>
+      <div class="f"><label>Church / ministry (from)</label><input data-f="Church / Ministry From"></div>
+      <div class="f"><label>Preaching / event date(s)</label><input data-f="Event Date(s)"></div>
+      <div class="row">
+        <div class="f"><label>Attending Personnel (PIC)</label><input data-f="Attending Personnel"></div>
+        <div class="f"><label>PIC contact no.</label><input data-f="PIC Contact" inputmode="tel"></div>
+      </div>
+      <div class="f"><label>Hosting Pastor</label><input data-f="Hosting Pastor"></div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">2</span>Where is the guest staying?</h2>
+      <div class="opts" id="stayOpts">
+        <label><input type="radio" name="stay" value="Staying in our apartment"><span>Staying in our church apartment<small>The Church Admin will assign a unit</small></span></label>
+        <label><input type="radio" name="stay" value="Day trip – hosting only"><span>Day trip, hosting only<small>No overnight stay</small></span></label>
+        <label><input type="radio" name="stay" value="Staying elsewhere"><span>Staying elsewhere<small>Hotel, host home, etc.</small></span></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">3</span>Travel</h2>
+      <div class="row">
+        <div class="f"><label>Arrival date</label><input id="arrD" type="date"></div>
+        <div class="f"><label>Arrival time</label><input id="arrT" type="time"></div>
+      </div>
+      <div class="row">
+        <div class="f"><label>Departure date</label><input id="depD" type="date"></div>
+        <div class="f"><label>Departure time</label><input id="depT" type="time"></div>
+      </div>
+      <div class="row">
+        <div class="f"><label>Mode of travel</label><select data-f="Mode of Travel"><option value=""></option><option>Flight</option><option>Train</option><option>Bus</option><option>Own car</option><option>Others</option></select></div>
+        <div class="f"><label>Flight / travel details</label><input data-f="Travel Details" placeholder="e.g. MH123, KLIA"></div>
+      </div>
+      <div class="f"><label>Transport needed</label>
+        <div class="opts" id="transport">
+          <label style="padding:9px 12px"><input type="checkbox" value="Airport / station pickup" style="display:inline-block;width:18px;height:18px;accent-color:var(--brown)"> Airport / station pickup</label>
+          <label style="padding:9px 12px"><input type="checkbox" value="Local transfers" style="display:inline-block;width:18px;height:18px;accent-color:var(--brown)"> Local transfers</label>
+          <label style="padding:9px 12px"><input type="checkbox" value="Church transport" style="display:inline-block;width:18px;height:18px;accent-color:var(--brown)"> Church transport</label>
+        </div></div>
+      <div class="f"><label>Vehicle plate / model / colour</label><input data-f="Vehicle Details"></div>
+      <div class="row">
+        <div class="f"><label>Accompanying persons</label><input data-f="Accompanying Persons" type="number" min="0"></div>
+        <div class="f" id="aptPaxWrap"><label>Guests in apartment (max 5)</label><input data-f="Apartment Guests" type="number" min="1" max="5"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">4</span>Meals &amp; care</h2>
+      <div class="f"><label>Dietary preferences &amp; meal schedule</label><textarea data-f="Dietary & Meal Schedule"></textarea></div>
+      <div class="f"><label>Allergies / health notes (medication, mobility needs)</label><textarea data-f="Health Notes"></textarea></div>
+      <div class="note"><b>Meal claim guidelines</b><br>RM50–RM70 per pax per meal (guest speaker &amp; approved accompanying persons) · above RM70 needs prior approval · original receipts · Accounts Submission Deadline SOP.</div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">5</span>Honorarium / love gift</h2>
+      <div class="f"><label>Account holder name</label><input data-f="Account Holder"></div>
+      <div class="row">
+        <div class="f"><label>Bank name</label><input data-f="Bank Name"></div>
+        <div class="f"><label>Account number</label><input data-f="Account Number" inputmode="numeric"></div>
+      </div>
+      <div class="f"><label>Mobile number</label><input data-f="Mobile Number" inputmode="tel"></div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">6</span>Checklist</h2>
+      <div id="checks"></div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">7</span>Reminder to guest</h2>
+      <p class="small muted" style="margin:0 0 6px">Send 2 weeks before arrival. Names and dates are filled in for you.</p>
+      <a class="btn" id="remind" target="_blank" rel="noopener">Open reminder in WhatsApp</a>
+    </section>
+
+    <button class="btn" id="saveBtn">Save progress</button>
+    <button class="btn pri" id="submitBtn">Submit to Church Admin</button>
+    <div class="msg" id="msg"></div>
+    <p class="small muted center">You can come back to this link anytime to update it. Submitting again sends the latest details to the Church Admin.</p>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+const H = qs("h"), K = qs("k");
+const CHECKS = [
+  ["2 weeks before arrival", [["c1", "Apartment Preparation Checklist completed (if staying in apartment)"], ["c2", "Sermon slides received (deadline: 1 week before event)"], ["c3", "Bank details forwarded to Accounts Department"], ["c4", "Gift prepared (if any)"], ["c5", "Travel reconfirmed: itinerary, transport, accompanying persons"], ["c6", "Meal arrangements confirmed: preferences, schedule, allergies"]]],
+  ["1 day before / day of", [["c7", "Transport arrangements & pickup schedule reconfirmed"], ["c8", "Meal schedule reconfirmed with guest (coordinated within Pastoral Team)"], ["c9", "Guest personally welcomed and hosted throughout the visit"]]],
+  ["After event", [["c10", "Return transport arranged"], ["c11", "Lodging checkout checked"], ["c12", "Thank-you email / message sent (cc: Senior Pastor)"], ["c13", "Honorarium / love gift processed (if any)"]]]
+];
+$("checks").innerHTML = CHECKS.map(([g, items]) => `<div class="hg"><div class="hgt">${g}</div>${items.map(([k, t]) => `<label class="check"><input type="checkbox" value="${k}"><span>${t}</span></label>`).join("")}</div>`).join("");
+let R = null;
+const fields = () => [...document.querySelectorAll("[data-f]")];
+const stayOpt = () => (document.querySelector('input[name=stay]:checked') || {}).value || "";
+const split = s => { const d = toD(s); return d ? [iso(d), `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`] : ["", ""] };
+
+(async () => {
+  try {
+    if (!H || !K) throw new Error("This page needs the hosting link from the Church Admin.");
+    R = (await api("getHosting", { h: H, k: K })).hosting;
+    fields().forEach(el => el.value = R[el.dataset.f] ?? "");
+    const opt = document.querySelector(`input[name=stay][value="${R["Stay Option"]}"]`); if (opt) opt.checked = true;
+    [$("arrD").value, $("arrT").value] = split(R["Arrival"]); [$("depD").value, $("depT").value] = split(R["Departure"]);
+    const tr = String(R["Transport Needed"] || ""); document.querySelectorAll("#transport input").forEach(c => c.checked = tr.includes(c.value));
+    const done = String(R["Checklist"] || "").split("|"); document.querySelectorAll("#checks input").forEach(c => c.checked = done.includes(c.value));
+    $("loading").classList.add("hide"); $("form").classList.remove("hide"); render();
+  } catch (e) { $("loading").classList.add("hide"); $("error").classList.remove("hide"); $("errText").textContent = e.message }
+})();
+
+function data() {
+  const o = {}; fields().forEach(el => o[el.dataset.f] = el.value.trim());
+  o["Stay Option"] = stayOpt();
+  o["Arrival"] = $("arrD").value ? $("arrD").value + "T" + ($("arrT").value || "00:00") : "";
+  o["Departure"] = $("depD").value ? $("depD").value + "T" + ($("depT").value || "00:00") : "";
+  o["Transport Needed"] = [...document.querySelectorAll("#transport input:checked")].map(c => c.value).join(", ");
+  o["Checklist"] = [...document.querySelectorAll("#checks input:checked")].map(c => c.value).join("|");
+  if (o["Stay Option"] !== "Staying in our apartment") o["Apartment Guests"] = "";
+  return o;
+}
+function render() {
+  const apt = stayOpt() === "Staying in our apartment";
+  $("aptPaxWrap").classList.toggle("hide", !apt);
+  document.querySelector('#checks input[value="c1"]').closest("label").classList.toggle("hide", !apt);
+  const st = R["Status"] || "";
+  $("status").innerHTML = `<b>${esc(R["Hosting ID"])}</b> · ${esc(st)}${R["Submitted At"] ? " · last submitted " + esc(fmtShort(R["Submitted At"])) : ""}${R["Linked Stay ID"] ? "<br>🏠 Apartment request " + esc(R["Linked Stay ID"]) + " is with the Church Admin" : ""}`;
+  const d = data(), g = d["Guest Name"] || "[Guest Speaker’s Name]", p = d["Attending Personnel"] || "[Attending Personnel Name]", ev = d["Event Date(s)"] || "[date(s)]";
+  const accom = apt ? `2️⃣ *Accommodation* – we’ll be hosting you at our in-house apartment\n   • Number of guests staying in apartment:\n` : `2️⃣ *Accommodation* – please let us know where you will be staying\n`;
+  const text = `Hi ${g}, this is ${p} from Tabernacle of Worship.\n\nWe’re excited to welcome you on ${ev} for your preaching engagement. I’ll be assisting you as your Attending Personnel.\n\nWhen convenient, could you kindly respond to the following:\n\n1️⃣ *Sermon slides* – could you kindly share them with us\n${accom}3️⃣ *Travel details* – arrival & departure confirmation\n   • Arrival date & time:\n   • Departure date & time:\n   • Vehicle plate/model/colour:\n4️⃣ *Meals & dietary needs* – any dietary restrictions (including allergies or sensitivities)\n5️⃣ *Health notes* – anything we should be mindful of (e.g. medication, health conditions, mobility needs)\n6️⃣ *Honorarium/love gift*\n   • Account name:\n   • Bank name:\n   • Bank number:\n\nWe’re looking forward to your ministry with us and are praying for a blessed time together. Please feel free to reach out anytime if you need assistance. 🙏`;
+  $("remind").href = waLink("", text);
+}
+$("form").addEventListener("input", render); $("form").addEventListener("change", render);
+
+async function save(submit) {
+  const d = data();
+  if (submit) {
+    const miss = [];
+    if (!d["Guest Name"]) miss.push("guest name");
+    if (!d["Stay Option"]) miss.push("where the guest is staying");
+    if (!d["Arrival"]) miss.push("arrival date");
+    if (d["Stay Option"] === "Staying in our apartment" && !d["Departure"]) miss.push("departure date");
+    if (miss.length) { $("msg").textContent = "Please fill in: " + miss.join(", "); return }
+    if (d["Arrival"] && d["Departure"] && toD(d["Departure"]) <= toD(d["Arrival"])) { $("msg").textContent = "Departure must be after arrival."; return }
+  }
+  const b = submit ? $("submitBtn") : $("saveBtn"); b.disabled = true; $("msg").textContent = submit ? "Submitting…" : "Saving…";
+  try {
+    R = (await api("saveHosting", { h: H, k: K, data: d, submit })).hosting;
+    $("msg").textContent = submit ? "Submitted to the Church Admin. Thank you! 🙏" : "Saved."; render();
+  } catch (e) { $("msg").textContent = e.message }
+  finally { b.disabled = false }
+}
+$("saveBtn").onclick = () => save(false);
+$("submitBtn").onclick = () => save(true);
+</script>
+</body>
+</html>

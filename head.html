@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>TOW Apartment · Ministry Head</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" href="favicon.png">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img class="mark" src="logo-mark.png" alt="TOW">
+    <div class="eyebrow">Tabernacle of Worship</div>
+    <h1>Apartment Stay</h1>
+    <div class="sub">For Ministry Heads · check availability &amp; send a stay link</div>
+  </header>
+
+  <section class="card" id="login">
+    <div class="f"><label>Ministry Head passcode</label><input id="hkey" type="password"></div>
+    <label class="inline" style="margin:0 0 6px"><input type="checkbox" id="remember" checked> Remember on this phone</label>
+    <button class="btn pri" id="loginBtn">Continue</button>
+    <div class="msg" id="loginMsg"></div>
+  </section>
+
+  <div id="main" class="hide">
+    <section class="card">
+      <h2><span class="n">1</span>Your ministry</h2>
+      <div class="f"><select id="ministry"></select><div class="hint" id="headName"></div></div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">2</span>Check availability</h2>
+      <div class="row">
+        <div class="f"><label>Check-in date</label><input id="cin" type="date"></div>
+        <div class="f"><label>Check-in time</label><input id="cinT" type="time" value="15:00"></div>
+      </div>
+      <div class="row">
+        <div class="f"><label>Check-out date</label><input id="cout" type="date"></div>
+        <div class="f"><label>Check-out time</label><input id="coutT" type="time" value="12:00"></div>
+      </div>
+      <div class="hint" style="margin:-4px 0 12px">Bookings must be at least 1 week in advance.</div>
+      <div class="units4" id="units"></div>
+      <div class="note" id="avNote" style="margin-top:12px"></div>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">3</span>Create the member's stay link</h2>
+      <div class="f"><label>Member's name</label><input id="member"></div>
+      <div class="f"><label>Stay category</label><div class="opts" id="cats"></div></div>
+      <p class="small muted" style="margin:0">Creating the link counts as your digital approval. Your name, ministry and the time will be stamped on the member's form.</p>
+      <button class="btn pri" id="createBtn">Approve &amp; create link</button>
+      <div class="msg" id="createMsg"></div>
+      <div id="linkOut" class="hide">
+        <div class="note ok" style="margin-top:12px" id="okText"></div>
+        <div class="linkbox" id="linkBox" style="margin-top:10px"></div>
+        <div class="row" style="margin-top:10px">
+          <a class="btn pri" id="waBtn" target="_blank" rel="noopener" style="margin:0">Send on WhatsApp</a>
+          <button class="btn" id="copyBtn" style="margin:0">Copy link</button>
+        </div>
+      </div>
+    </section>
+    <p class="small muted center">After the member submits, the Church Admin assigns the unit and sends you the confirmation and check-in notes to forward.</p>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+let HKEY = "", MIN = [], AV = [];
+const min = earliestBooking();
+$("cin").min = iso(min); $("cout").min = iso(min);
+$("cats").innerHTML = PAID_CATS.map((c, i) => `<label><input type="radio" name="cat" value="${c}"${i === 0 ? " checked" : ""}><span>${c}${i === 0 ? "<small>Rehearsal / serving at TOW that weekend</small>" : ""}</span></label>`).join("");
+$("hkey").value = store.get("tow-head-key") || "";
+
+$("loginBtn").onclick = async () => {
+  HKEY = $("hkey").value; $("loginMsg").textContent = "Checking…";
+  try {
+    const j = await api("headInit", { hkey: HKEY });
+    MIN = j.ministries.filter(m => m.ministry !== "Accounts"); AV = j.availability;
+    if ($("remember").checked) store.set("tow-head-key", HKEY); else store.del("tow-head-key");
+    $("ministry").innerHTML = `<option value="">Select your ministry</option>` + MIN.map(m => `<option>${esc(m.ministry)}</option>`).join("");
+    const saved = store.get("tow-head-ministry"); if (saved && MIN.some(m => m.ministry === saved)) $("ministry").value = saved;
+    $("login").classList.add("hide"); $("main").classList.remove("hide"); render();
+  } catch (e) { $("loginMsg").textContent = e.message }
+};
+if (store.get("tow-head-key")) $("loginBtn").click();
+
+const sel = () => MIN.find(m => m.ministry === $("ministry").value);
+const range = () => ({ a: $("cin").value ? $("cin").value + "T" + ($("cinT").value || "15:00") : "", b: $("cout").value ? $("cout").value + "T" + ($("coutT").value || "12:00") : "" });
+function render() {
+  const m = sel(); $("headName").textContent = m ? "Ministry Head: " + m.head + (m.notes ? " · " + m.notes : "") : "";
+  if (m) store.set("tow-head-ministry", m.ministry);
+  const { a, b } = range(), A = toD(a), B = toD(b);
+  const freeOf = u => !AV.some(x => unitsOf(x.unit).includes(String(u)) && toD(x.from) < B && toD(x.to) > A);
+  let box = '<span class="muted">Pick the dates to check availability.</span>';
+  if (A && B && B > A) {
+    const main = [3, 4, 2].filter(freeOf);
+    box = main.length ? `<b style="color:var(--ok)">✅ Available for these dates</b><div class="small muted" style="margin-top:3px">The Church Admin will assign the unit after the member submits.</div>`
+      : freeOf(1) ? `<b style="color:#8a5a1f">🟡 Limited availability</b><div class="small muted" style="margin-top:3px">Please check with the Church Admin before sending the link.</div>`
+      : `<b style="color:var(--warn)">❌ Fully booked for these dates</b><div class="small muted" style="margin-top:3px">Please suggest other dates.</div>`;
+  }
+  $("units").innerHTML = `<div class="u" style="grid-column:1/-1">${box}</div>`;
+  const unassigned = AV.filter(x => !unitsOf(x.unit).length && A && B && toD(x.from) < B && toD(x.to) > A).length;
+  let n = "";
+  if (A && B) {
+    if (B <= A) n = "Check-out must be after check-in.";
+    else if (A < earliestBooking()) n = "Check-in must be at least 1 week from today.";
+    else { const km = s => accompanied(s) ? "with Ministry Head / Church Admin" : "self (keys at guard house)"; n = `${nightsOf(a, b)} night(s) · Check-in ${km(a)} · Check-out ${km(b)}.` + (unassigned ? ` ${unassigned} other request(s) for these dates are waiting for a unit.` : ""); }
+  }
+  $("avNote").textContent = n; $("avNote").className = "note" + (/must/.test(n) ? " warn" : "");
+}
+["ministry", "cin", "cinT", "cout", "coutT"].forEach(id => $(id).addEventListener("input", render));
+
+$("createBtn").onclick = async () => {
+  const m = sel(), { a, b } = range();
+  if (!m) return $("createMsg").textContent = "Please select your ministry.";
+  if (!a || !b) return $("createMsg").textContent = "Please choose the dates.";
+  if (!$("member").value.trim()) return $("createMsg").textContent = "Please enter the member's name.";
+  const cat = document.querySelector('input[name=cat]:checked').value;
+  $("createBtn").disabled = true; $("createMsg").textContent = "Creating…";
+  try {
+    const j = await api("createApproval", { hkey: HKEY, ministry: m.ministry, member: $("member").value.trim(), category: cat, cin: a, cout: b });
+    $("createMsg").textContent = "";
+    $("okText").textContent = `Approved by ${j.approval.head} · ${fmtShort(a)} → ${fmtShort(b)}`;
+    $("linkBox").textContent = j.approval.link;
+    const text = `Hi ${$("member").value.trim()} 👋\n\nYour apartment stay at TOW is approved for *${fmt(a)}* to *${fmt(b)}*.\n\nPlease fill in and sign the stay form here:\n${j.approval.link}\n\nThe Church Admin will confirm your unit and check-in details after you submit. 🙏`;
+    $("waBtn").href = waLink("", text);
+    $("copyBtn").onclick = e => copyText(j.approval.link, e.target);
+    $("linkOut").classList.remove("hide");
+  } catch (e) { $("createMsg").textContent = e.message }
+  finally { $("createBtn").disabled = false }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+/* Shared helpers for TOW Apartment pages */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const store = { get: k => { try { return localStorage.getItem(k) } catch (e) { return null } }, set: (k, v) => { try { localStorage.setItem(k, v) } catch (e) { } }, del: k => { try { localStorage.removeItem(k) } catch (e) { } } };
+const qs = k => new URLSearchParams(location.search).get(k);
+async function api(action, body = {}) {
+  const url = window.TOW_API;
+  if (!url || url.indexOf("PASTE") >= 0) throw new Error("This page isn't connected yet (config.js).");
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, ...body }) });
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error || "Something went wrong");
+  return j;
+}
+const toD = s => { if (!s) return null; const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/); return m ? new Date(+m[1], m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) : null };
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const fmtT = d => d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true }).replace(" ", "").toLowerCase();
+const fmt = s => { const d = toD(s); if (!d) return ""; return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) + ", " + fmtT(d) };
+const fmtShort = s => { const d = toD(s); if (!d) return ""; return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) + (d.getHours() || d.getMinutes() ? " " + fmtT(d) : "") };
+const nightsOf = (a, b) => { const A = toD(a), B = toD(b); if (!A || !B) return 0; A.setHours(0, 0, 0, 0); B.setHours(0, 0, 0, 0); return Math.max(0, Math.round((B - A) / 864e5)) };
+const accompanied = s => { const x = toD(s); if (!x) return null; const day = x.getDay(), h = x.getHours() + x.getMinutes() / 60; return (day >= 2 && day <= 5 && h >= 9 && h < 18) || (day === 0 && h >= 8 && h < 11) };
+const keyText = (s, w) => { const a = accompanied(s); return a === null ? "" : a ? `With Ministry Head / Church Admin` : `Self ${w}: keys at the guard house (sealed envelope)` };
+const keyShort = (s, w) => { const a = accompanied(s); return a === null ? "" : a ? "🤝 With Ministry Head / Church Admin" : `🔑 Self ${w} · keys at guard house` };
+// Unit 1 is kept for guest speakers: offered last for paid stays
+const unitOrder = cat => (RATES[cat] === 0 ? [1, 2, 3, 4] : [3, 4, 2, 1]);
+const unitsOf = u => String(u || "").match(/[1-4]/g) || [];
+const waNum = p => { let d = String(p || "").replace(/\D/g, ""); if (d.startsWith("0")) d = "6" + d; return d };
+const waLink = (phone, text) => `https://wa.me/${waNum(phone)}?text=${encodeURIComponent(text)}`;
+const earliestBooking = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 7); return d };
+const RATES = { "Pastors, Guest Speakers & Mission Pastors": 0, "Member serving that weekend": 50, "Member, personal or non-serving stay": 200, "Non-member": 250 };
+const PAID_CATS = ["Member serving that weekend", "Member, personal or non-serving stay", "Non-member"];
+const ALL_CATS = ["Pastors, Guest Speakers & Mission Pastors", ...PAID_CATS];
+const CHURCH_BANK = "TABERNACLE OF WORSHIP · Hong Leong Bank (Malaysia) · 371 000 128 43";
+const TERMS = [
+  "Bookings must be made at least 1 week in advance.",
+  "Check-in &amp; check-out: Tue–Fri 9am–6pm and Sun 8am–11am, accompanied by the Ministry Head / Church Admin. At other times it is a self check-in/out, with keys left at the guard house in a sealed envelope.",
+  "Please take time to read the House Rules posted in the unit.",
+  "Keep the unit tidy. Do not move furniture or remove any items.",
+  "At check-out: throw all rubbish into the large bin near the security booth, switch off all appliances, lock up and return the keys as arranged.",
+  "Please report any damage at once so it can be attended to. We kindly ask guests to cover any repair or replacement needed.",
+  "Love gifts go towards cleaning and upkeep. They are offerings, not rental fees."
+];
+const WHY = "These apartments are a blessing entrusted to our church. Your love gift helps us steward them well, keeping every unit clean, cared for and ready to welcome guest speakers, missionaries and fellow serving personnel. Thank you for sowing into this ministry of hospitality.";
+const VERSE = "“Use hospitality one to another without grudging.” — 1 Peter 4:9";
+
+function sigPad(box) {
+  const cv = box.querySelector("canvas"), ctx = cv.getContext("2d"), ph = box.querySelector(".ph");
+  const pad = { empty: true, data: () => pad.empty ? "" : cv.toDataURL("image/png") };
+  const size = () => { const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1; if (!r.width) return; const img = pad.empty ? null : cv.toDataURL(); cv.width = r.width * d; cv.height = r.height * d; ctx.setTransform(d, 0, 0, d, 0, 0); ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#2f251b"; if (img) { const i = new Image(); i.onload = () => ctx.drawImage(i, 0, 0, r.width, r.height); i.src = img } };
+  size(); window.addEventListener("resize", size); pad.resize = size;
+  let on = false, last = null; const pt = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top } };
+  cv.addEventListener("pointerdown", e => { on = true; last = pt(e); cv.setPointerCapture(e.pointerId); pad.empty = false; ph.style.display = "none" });
+  cv.addEventListener("pointermove", e => { if (!on) return; const p = pt(e); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(t => cv.addEventListener(t, () => on = false));
+  box.querySelector(".clr").addEventListener("click", e => { e.preventDefault(); ctx.clearRect(0, 0, cv.width, cv.height); pad.empty = true; ph.style.display = "" });
+  return pad;
+}
+async function copyText(t, btn) { try { await navigator.clipboard.writeText(t); const o = btn.textContent; btn.textContent = "Copied"; setTimeout(() => btn.textContent = o, 1200) } catch (e) { prompt("Copy this:", t) } }
