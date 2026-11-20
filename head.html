@@ -75,7 +75,7 @@ $("cats").innerHTML = PAID_CATS.map((c, i) => `<label><input type="radio" name="
 $("hkey").value = store.get("tow-head-key") || "";
 
 $("loginBtn").onclick = async () => {
-  HKEY = $("hkey").value; $("loginMsg").textContent = "Checking…";
+  HKEY = $("hkey").value.trim(); if (!HKEY) return $("loginMsg").textContent = "Please type the passcode."; $("loginMsg").textContent = "Logging in…"; $("loginBtn").disabled = true;
   try {
     const j = await api("headInit", { hkey: HKEY });
     MIN = j.ministries.filter(m => m.ministry !== "Accounts"); AV = j.availability;
@@ -83,9 +83,10 @@ $("loginBtn").onclick = async () => {
     $("ministry").innerHTML = `<option value="">Select your ministry</option>` + MIN.map(m => `<option>${esc(m.ministry)}</option>`).join("");
     const saved = store.get("tow-head-ministry"); if (saved && MIN.some(m => m.ministry === saved)) $("ministry").value = saved;
     $("login").classList.add("hide"); $("main").classList.remove("hide"); render();
-  } catch (e) { $("loginMsg").textContent = e.message }
+  } catch (e) { $("loginMsg").textContent = e.message; if (/passcode/i.test(e.message)) store.del("tow-head-key") }
+  finally { $("loginBtn").disabled = false }
 };
-if (store.get("tow-head-key")) $("loginBtn").click();
+pwToggle("hkey");
 
 const sel = () => MIN.find(m => m.ministry === $("ministry").value);
 const range = () => ({ a: $("cin").value ? $("cin").value + "T" + ($("cinT").value || "15:00") : "", b: $("cout").value ? $("cout").value + "T" + ($("coutT").value || "12:00") : "" });
@@ -132,6 +133,8 @@ $("createBtn").onclick = async () => {
   } catch (e) { $("createMsg").textContent = e.message }
   finally { $("createBtn").disabled = false }
 };
+// auto-login last, after everything above is ready
+if (store.get("tow-head-key")) $("loginBtn").click();
 </script>
 </body>
 </html>

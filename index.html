@@ -139,7 +139,7 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 <script src="config.js"></script>
 <script src="app.js"></script>
 <script>
-let KEY = "", S = [], HS = [], MINS = [], SITE = "", TAB = "inbox", cur = null;
+let KEY = "", S = [], HS = [], MINS = [], SITE = "", TAB = "inbox", cur = null, LAST_BACKUP = null;
 const STAY_STATUS = ["Requested", "Booked", "Confirmed", "Checked-in", "Completed", "Cancelled"];
 const HOST_STATUS = ["Link sent", "In progress", "Submitted", "Received", "Sent to Accounts", "Closed"];
 const HEAD = ["Stay ID","Status","Category","Name of User","Main Guest","Purpose of Use","Ministry","Ministry Head","Attending Personnel","Contact No.","Unit No.","No. of Guests","Arrival","Departure","Nights","Vehicle Details","Church Transport","Transport PIC","Guest Preferences / Special Notes","Love Gift (RM)","Love Gift Ref","Special Arrangement","Step 1: Assign Cleaners","Step 2: Unit Preparation","Step 3: Guest Essentials","Step 4: Before Check-in","Step 5: Meal Arrangement","Step 6: After Check-out","Final Checked By","Final Check Date","Additional Notes","Source","Approved By","Approved At","Submitted At","Acknowledged At","Hosting ID","PDF"];
@@ -156,7 +156,6 @@ $("loginBtn").onclick = async () => {
 };
 pwToggle("passcode");
 $("logout").onclick = e => { e.preventDefault(); store.del("tow-admin-key"); location.reload() };
-if (store.get("tow-admin-key")) $("loginBtn").click();
 async function load() { const j = await call("list"); S = j.stays; HS = j.hosting; MINS = j.ministries; SITE = j.site; LAST_BACKUP = j.lastBackup || null; render(); showBackup() }
 $("refreshBtn").onclick = async () => { try { await load(); toast("Up to date") } catch (e) { toast(e.message) } };
 function openFromHash() { const id = decodeURIComponent(location.hash.slice(1)); if (!id) return; const s = S.find(x => x["Stay ID"] === id); if (s) return openStay(s); const h = HS.find(x => x["Hosting ID"] === id); if (h) openHost(h) }
@@ -361,7 +360,6 @@ $("newHostBtn").onclick = () => openHost(null);
 /* ---------- Reports ---------- */
 $("printBtn").onclick = () => window.print();
 $("showAll").onclick = () => setAllSections(false); $("hideAll").onclick = () => setAllSections(true);
-let LAST_BACKUP = null;
 const showBackup = () => { $("backupInfo").textContent = LAST_BACKUP ? `Last backup: ${fmtShort(LAST_BACKUP.at)}${LAST_BACKUP.auto ? " (auto)" : ""}` : "No backup yet" };
 $("backupBtn").onclick = async () => { $("backupBtn").disabled = true; $("backupInfo").textContent = "Backing up…"; try { const j = await call("backup"); LAST_BACKUP = j.backup; showBackup(); toast("Backup saved to Drive") } catch (e) { toast(e.message); showBackup() } finally { $("backupBtn").disabled = false } };
 $("rYear").onchange = renderReport;
@@ -419,6 +417,8 @@ $("xlsBtn").onclick = () => {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([HH, ...HS.map(h => HH.map(k => ["Arrival", "Departure", "Submitted At", "Sent to Accounts At"].includes(k) ? (toD(h[k]) || "") : (h[k] ?? "")))], { cellDates: true }), "Hosting");
   XLSX.writeFile(wb, `TOW-Apartment-Stay-Log-${iso(new Date())}.xlsx`, { cellDates: true });
 };
+// auto-login last, after everything above is ready
+if (store.get("tow-admin-key")) $("loginBtn").click();
 </script>
 </body>
 </html>
