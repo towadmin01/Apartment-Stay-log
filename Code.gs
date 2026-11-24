@@ -15,10 +15,10 @@ const CONFIG = {
 const STAY = 'Stay Log', HOST = 'Hosting', APPR = 'Approvals', MIN = 'Ministries';
 const HEADS = {};
 HEADS[STAY] = ["Stay ID","Status","Category","Name of User","Main Guest","Purpose of Use","Ministry","Ministry Head","Attending Personnel","Contact No.","Unit No.","No. of Guests","Arrival","Departure","Nights","Vehicle Details","Church Transport","Transport PIC","Guest Preferences / Special Notes","Love Gift (RM)","Love Gift Ref","Special Arrangement","Step 1: Assign Cleaners","Step 2: Unit Preparation","Step 3: Guest Essentials","Step 4: Before Check-in","Step 5: Meal Arrangement","Step 6: After Check-out","Final Checked By","Final Check Date","Additional Notes","Source","Approval ID","Approved By","Approved At","Submitted At","Signature","PDF","Acknowledged At","Hosting ID","Calendar Event ID","Last Updated"];
-HEADS[HOST] = ["Hosting ID","Status","Guest Name","Church / Ministry From","Event Date(s)","Attending Personnel","PIC Contact","Hosting Pastor","Stay Option","Arrival","Departure","Mode of Travel","Travel Details","Transport Needed","Vehicle Details","Accompanying Persons","Apartment Guests","Dietary & Meal Schedule","Health Notes","Account Holder","Bank Name","Account Number","Mobile Number","Checklist","Linked Stay ID","Created At","Submitted At","Sent to Accounts At","PDF","Admin Notes","Secret"];
-HEADS[APPR] = ["Approval ID","Ministry","Ministry Head","Member Name","Category","Check-in","Check-out","Created At","Used By Stay"];
-HEADS[MIN] = ["Ministry","Ministry Head","WhatsApp","Notes"];
-const DATE_FIELDS = ["Arrival","Departure","Final Check Date","Approved At","Submitted At","Acknowledged At","Last Updated","Created At","Sent to Accounts At","Check-in","Check-out"];
+HEADS[HOST] = ["Hosting ID","Status","Guest Name","Church / Ministry From","Event Date(s)","Attending Personnel","PIC Contact","Hosting Pastor","Stay Option","Arrival","Departure","Mode of Travel","Travel Details","Transport Needed","Vehicle Details","Accompanying Persons","Apartment Guests","Dietary & Meal Schedule","Health Notes","Account Holder","Bank Name","Account Number","Mobile Number","Checklist","Linked Stay ID","Created At","Submitted At","Sent to Accounts At","PDF","Admin Notes","Event Date","PIC Email","Needs Apartment","Reminder 14d Sent","Reminder 3d Sent","Calendar Event ID","Secret"];
+HEADS[APPR] = ["Approval ID","Ministry","Ministry Head","Member Name","Category","Check-in","Check-out","Created At","Used By Stay","Notes"];
+HEADS[MIN] = ["Ministry","Ministry Head","WhatsApp","Notes","Passcode"];
+const DATE_FIELDS = ["Arrival","Departure","Final Check Date","Approved At","Submitted At","Acknowledged At","Last Updated","Created At","Sent to Accounts At","Check-in","Check-out","Event Date","Reminder 14d Sent","Reminder 3d Sent"];
 const RATES = { "Pastors, Guest Speakers & Mission Pastors": 0, "Member serving that weekend": 50, "Member, personal or non-serving stay": 200, "Non-member": 250 };
 const NO_CALENDAR = ['Requested', 'Cancelled'];
 
@@ -62,7 +62,8 @@ function setupTelegram() {
 }
 
 /** Turns on the daily automatic backup (runs around 2am). Run once. */
-function setupAutoBackup() {
+function setupAutoBackup() { return setupDailyJobs(); }
+function setupAutoBackupOnly_() {
   ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'autoBackup').forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('autoBackup').timeBased().everyDays(1).atHour(2).inTimezone(CONFIG.TZ).create();
   const b = backupNow_(true);
@@ -112,6 +113,7 @@ function doPost(e) {
   try {
     const b = JSON.parse(e.postData.contents || '{}');
     const p = PropertiesService.getScriptProperties();
+    upgradeSheets_();
     // Site address: use SITE_URL if you set it; otherwise learn it from the pages themselves (no editing needed)
     if (/YOUR-GITHUB/i.test(CONFIG.SITE_URL)) {
       if (b.site && /^https:\/\/[^\s"'<>]+\/$/.test(b.site) && !/localhost|script\.google/.test(b.site) && b.site !== p.getProperty('SITE_URL')) p.setProperty('SITE_URL', b.site);
@@ -128,21 +130,30 @@ function doPost(e) {
         case 'getHosting':    return json_({ ok: true, hosting: getHostingPublic_(b.h, b.k) });
         case 'saveHosting':   return json_({ ok: true, hosting: saveHostingPublic_(b.h, b.k, b.data || {}, !!b.submit) });
         // Ministry Heads
-        case 'headInit':      need_(isHead); return json_({ ok: true, ministries: ministries_(false), availability: availability_() });
-        case 'createApproval':need_(isHead); return json_({ ok: true, approval: createApproval_(b) });
+        case 'headInit':      return json_({ ok: true, ministries: ministries_(false), availability: availability_() });
+        case 'createApproval':return json_({ ok: true, approval: createApproval_(b) });
         // Admin
-        case 'list':          need_(isAdmin); return json_({ ok: true, stays: rows_(STAY), hosting: hostingList_(), approvals: rows_(APPR).map(x => Object.assign(x, { link: CONFIG.SITE_URL + 'request.html?t=' + x['Approval ID'] })), ministries: ministries_(true), site: CONFIG.SITE_URL, sheet: { name: SpreadsheetApp.getActive().getName(), url: SpreadsheetApp.getActive().getUrl() }, folderUrl: folder_().getUrl(), lastBackup: JSON.parse(PropertiesService.getScriptProperties().getProperty('LAST_BACKUP') || 'null') });
+        case 'list':          need_(isAdmin); ensureHeadCodes_(); return json_({ ok: true, stays: rows_(STAY), hosting: hostingList_(), approvals: rows_(APPR).map(x => Object.assign(x, { link: CONFIG.SITE_URL + 'request.html?t=' + x['Approval ID'] })), ministries: ministries_(true), site: CONFIG.SITE_URL, sheet: { name: SpreadsheetApp.getActive().getName(), url: SpreadsheetApp.getActive().getUrl() }, folderUrl: folder_().getUrl(), lastBackup: JSON.parse(PropertiesService.getScriptProperties().getProperty('LAST_BACKUP') || 'null') });
         case 'save':          need_(isAdmin); return json_({ ok: true, record: saveStay_(b.record || {}) });
         case 'cancel':        need_(isAdmin); return json_({ ok: true, record: setStay_(b.id, { 'Status': 'Cancelled' }) });
         case 'markAck':       need_(isAdmin); return json_({ ok: true, record: setStay_(b.id, { 'Acknowledged At': new Date() }, true) });
         case 'createHosting': need_(isAdmin); return json_({ ok: true, hosting: createHosting_(b.data || {}) });
         case 'updateHosting': need_(isAdmin); return json_({ ok: true, hosting: updateHosting_(b.id, b.data || {}) });
+        case 'newHeadCode':   need_(isAdmin); return json_({ ok: true, ministries: newHeadCode_(b.head) });
         case 'backup':        need_(isAdmin); return json_({ ok: true, backup: backupNow_(false) });
         case 'makePdf':       need_(isAdmin); return json_({ ok: true, url: (b.type === 'hosting' ? hostingPdf_(b.id) : stayPdf_(b.id)).getUrl() });
         default: throw new Error('Unknown action');
       }
     } finally { lock.releaseLock(); }
   } catch (err) { return json_({ ok: false, error: String(err && err.message || err) }); }
+}
+/** Adds any new columns after an update, once per version (no need to run setup again). */
+const SCHEMA = '3';
+function upgradeSheets_() {
+  const p = PropertiesService.getScriptProperties();
+  if (p.getProperty('SCHEMA') === SCHEMA) return;
+  [STAY, HOST, APPR, MIN].forEach(n => ensureSheet_(n));
+  p.setProperty('SCHEMA', SCHEMA);
 }
 function need_(ok) { if (!ok) throw new Error('Wrong passcode'); }
 
@@ -211,12 +222,30 @@ function token_() { return Utilities.getUuid().replace(/-/g, '').slice(0, 18); }
 
 /* =================== MINISTRIES & AVAILABILITY =================== */
 
-function ministries_(withPhones) {
+function ministries_(admin) {
   return table_(MIN).rows.map(r => {
     const o = { ministry: r['Ministry'], head: r['Ministry Head'], notes: r['Notes'] };
-    if (withPhones) o.whatsapp = String(r['WhatsApp'] || '');
+    if (admin) { o.whatsapp = String(r['WhatsApp'] || ''); o.passcode = String(r['Passcode'] || ''); }
     return o;
   });
+}
+/** Gives every Ministry Head their own 6-digit passcode (same code across all their ministries). */
+function ensureHeadCodes_() {
+  const t = table_(MIN); if (t.map['Passcode'] === undefined) { ensureSheet_(MIN); return ensureHeadCodes_(); }
+  const byHead = {}, used = {};
+  t.rows.forEach(r => { const c = String(r['Passcode'] || '').trim(); if (c) { byHead[r['Ministry Head']] = byHead[r['Ministry Head']] || c; used[c] = 1; } });
+  t.rows.forEach(r => {
+    if (String(r['Passcode'] || '').trim() || r['Ministry'] === 'Accounts') return;
+    let code = byHead[r['Ministry Head']];
+    if (!code) { do { code = String(Math.floor(100000 + Math.random() * 900000)); } while (used[code]); used[code] = 1; byHead[r['Ministry Head']] = code; }
+    t.sh.getRange(r._row, t.map['Passcode'] + 1).setNumberFormat('@').setValue(code);
+  });
+}
+function newHeadCode_(head) {
+  const t = table_(MIN); const used = {}; t.rows.forEach(r => used[String(r['Passcode'])] = 1);
+  let code; do { code = String(Math.floor(100000 + Math.random() * 900000)); } while (used[code]);
+  t.rows.filter(r => r['Ministry Head'] === head).forEach(r => t.sh.getRange(r._row, t.map['Passcode'] + 1).setNumberFormat('@').setValue(code));
+  return ministries_(true);
 }
 function availability_() {
   const from = new Date(); from.setHours(0, 0, 0, 0);
@@ -229,18 +258,25 @@ function availability_() {
 /* =================== MINISTRY HEAD APPROVAL LINK =================== */
 
 function createApproval_(b) {
-  const min = table_(MIN).rows.find(r => r['Ministry'] === b.ministry);
-  if (!min) throw new Error('Please choose your ministry.');
+  ensureHeadCodes_();
+  const t0 = table_(MIN);
+  const min = t0.rows.find(r => r['Ministry'] === b.ministry);
+  if (!min || min['Ministry'] === 'Accounts') throw new Error('Please choose your ministry.');
+  const code = String((t0.rows.find(r => r['Ministry Head'] === min['Ministry Head'] && String(r['Passcode'] || '').trim()) || {})['Passcode'] || '').trim();
+  if (!code || String(b.code || '').trim() !== code) throw new Error('That passcode doesn\'t match ' + min['Ministry Head'] + '. Please check with the Church Admin.');
   if (!(b.category in RATES) || RATES[b.category] === 0) throw new Error('Please choose a stay category.');
   const cin = toDate_(b.cin), cout = toDate_(b.cout);
   if (!(cin instanceof Date) || !(cout instanceof Date) || cout <= cin) throw new Error('Please check the dates.');
-  const earliest = new Date(); earliest.setHours(0, 0, 0, 0); earliest.setDate(earliest.getDate() + 7);
-  if (cin < earliest) throw new Error('Bookings must be made at least 1 week in advance.');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  if (cin < today) throw new Error('The check-in date has already passed.');
+  const earliest = new Date(today); earliest.setDate(earliest.getDate() + 7);
+  const shortNotice = cin < earliest;
   const id = token_();
   const t = table_(APPR);
-  writeRow_(APPR, t.sh.getLastRow() + 1, { 'Approval ID': id, 'Ministry': min['Ministry'], 'Ministry Head': min['Ministry Head'], 'Member Name': b.member || '', 'Category': b.category, 'Check-in': cin, 'Check-out': cout, 'Created At': new Date() });
-  return { id, link: CONFIG.SITE_URL + 'request.html?t=' + id, head: min['Ministry Head'], ministry: min['Ministry'] };
+  writeRow_(APPR, t.sh.getLastRow() + 1, { 'Approval ID': id, 'Ministry': min['Ministry'], 'Ministry Head': min['Ministry Head'], 'Member Name': b.member || '', 'Category': b.category, 'Check-in': cin, 'Check-out': cout, 'Created At': new Date(), 'Notes': shortNotice ? 'Short notice (special consideration)' : '' });
+  return { id, link: CONFIG.SITE_URL + 'request.html?t=' + id, head: min['Ministry Head'], ministry: min['Ministry'], shortNotice };
 }
+
 function getApproval_(t) {
   const a = find_(APPR, t);
   if (!a) throw new Error('This link is not valid. Please ask your Ministry Head for a new link.');
@@ -263,13 +299,13 @@ function submitRequest_(t, f, signature) {
     'Stay ID': id, 'Status': 'Requested', 'Category': a['Category'], 'Name of User': f.name, 'Main Guest': f.mainGuest || f.name,
     'Purpose of Use': f.purpose || '', 'Ministry': a['Ministry'], 'Ministry Head': a['Ministry Head'], 'Contact No.': f.phone || '',
     'No. of Guests': f.pax || '', 'Arrival': a['Check-in'], 'Departure': a['Check-out'], 'Vehicle Details': f.car || '',
-    'Love Gift (RM)': gift, 'Love Gift Ref': id, 'Special Arrangement': gift < suggested ? 'Below suggested minimum (RM' + suggested + ')' : '',
+    'Love Gift (RM)': gift, 'Love Gift Ref': id, 'Special Arrangement': [a['Notes'], gift < suggested ? 'Below suggested minimum (RM' + suggested + ')' : ''].filter(String).join(' · '),
     'Additional Notes': f.remarks || '', 'Source': 'Online request', 'Approval ID': t, 'Approved By': a['Ministry Head'],
     'Approved At': a['Created At'], 'Submitted At': new Date(), 'Signature': sigFile.getUrl()
   };
   const tb = table_(STAY);
   writeRow_(STAY, tb.sh.getLastRow() + 1, rec);
-  const ap = find_(APPR, t); table_(APPR).sh.getRange(ap._row, HEADS[APPR].indexOf('Used By Stay') + 1).setValue(id);
+  const ap = find_(APPR, t), apt = table_(APPR); apt.sh.getRange(ap._row, apt.map['Used By Stay'] + 1).setValue(id);
   const pdf = stayPdf_(id, sigFile);
   notify_('🏠 New stay request · ' + id, [
     '<b>' + esc_(f.name) + '</b> · ' + esc_(a['Category']),
@@ -304,11 +340,15 @@ function setStay_(id, fields, quiet) {
 
 /* =================== HOSTING (FOC guest speakers) =================== */
 
+const HOST_SCHEDULE = ["Guest Name","Church / Ministry From","Event Date","Event Date(s)","Needs Apartment","Arrival","Departure","Attending Personnel","PIC Contact","PIC Email","Hosting Pastor"];
 function createHosting_(d) {
-  if (!d.guest) throw new Error('Please enter the guest speaker name.');
+  if (!d['Guest Name']) throw new Error('Please enter the guest speaker name.');
+  if (!d['Event Date']) throw new Error('Please enter the preaching / event date.');
   const id = nextId_(HOST, 'HS-'), secret = token_();
-  const rec = { 'Hosting ID': id, 'Status': 'Link sent', 'Guest Name': d.guest, 'Church / Ministry From': d.from || '', 'Event Date(s)': d.event || '',
-    'Attending Personnel': d.pic || '', 'PIC Contact': d.picPhone || '', 'Hosting Pastor': d.pastor || '', 'Stay Option': '', 'Created At': new Date(), 'Secret': secret };
+  const rec = { 'Hosting ID': id, 'Status': 'Scheduled', 'Created At': new Date(), 'Secret': secret };
+  HOST_SCHEDULE.forEach(f => { if (d[f] !== undefined) rec[f] = d[f]; });
+  if (!rec['Event Date(s)']) rec['Event Date(s)'] = fmtDay_(rec['Event Date']);
+  rec['Calendar Event ID'] = hostEvent_(rec);
   writeRow_(HOST, table_(HOST).sh.getLastRow() + 1, rec);
   return hostingList_().find(x => x['Hosting ID'] === id);
 }
@@ -320,7 +360,7 @@ function saveHostingPublic_(h, k, data, submit) {
   const rec = Object.assign(plain_(r), { 'Secret': r['Secret'] });
   HOST_EDITABLE.forEach(f => { if (f in data) rec[f] = data[f]; });
   if (submit) { rec['Status'] = 'Submitted'; rec['Submitted At'] = new Date(); }
-  else if (rec['Status'] === 'Link sent') rec['Status'] = 'In progress';
+  else if (['Scheduled', 'Link sent'].indexOf(rec['Status']) >= 0) rec['Status'] = 'In progress';
   // linked apartment stay
   if (submit && rec['Stay Option'] === 'Staying in our apartment' && rec['Arrival'] && rec['Departure']) {
     const stay = { 'Category': 'Pastors, Guest Speakers & Mission Pastors', 'Name of User': rec['Guest Name'], 'Main Guest': rec['Guest Name'],
@@ -332,6 +372,7 @@ function saveHostingPublic_(h, k, data, submit) {
     if (rec['Linked Stay ID']) { const s = find_(STAY, rec['Linked Stay ID']); if (s) saveStay_(Object.assign(plain_(s), stay, { 'Status': s['Status'] })); }
     else { stay['Status'] = 'Requested'; stay['Submitted At'] = new Date(); rec['Linked Stay ID'] = saveStay_(stay)['Stay ID']; }
   }
+  rec['Calendar Event ID'] = hostEvent_(rec);
   writeRow_(HOST, r._row, rec);
   if (submit) {
     const pdf = hostingPdf_(h);
@@ -349,7 +390,12 @@ function hostingList_() {
 }
 function updateHosting_(id, d) {
   const r = find_(HOST, id); if (!r) throw new Error('Not found: ' + id);
-  const rec = Object.assign(plain_(r), { 'Secret': r['Secret'] }, d);
+  const before = plain_(r);
+  const rec = Object.assign(before, { 'Secret': r['Secret'] }, d);
+  // dates moved → reminders start again
+  if ((d['Event Date'] && d['Event Date'] !== plain_(r)['Event Date']) || (d['Arrival'] && d['Arrival'] !== plain_(r)['Arrival'])) { rec['Reminder 14d Sent'] = ''; rec['Reminder 3d Sent'] = ''; }
+  if (rec['Status'] === 'Closed' && rec['Calendar Event ID']) { /* keep the event; it's history */ }
+  rec['Calendar Event ID'] = hostEvent_(rec);
   writeRow_(HOST, r._row, rec);
   return hostingList_().find(x => x['Hosting ID'] === id);
 }
@@ -391,7 +437,7 @@ function stayPdf_(id, sigFile) {
   const html = '<html><head><style>' + PDF_CSS + '</style></head><body>' +
     '<img src="' + LOGO + '" style="width:42px;height:42px;float:right">' + '<div class="e">TABERNACLE OF WORSHIP</div><h1>Apartment Stay · Terms &amp; Approval</h1><div class="small">' + esc_(id) + ' · ' + esc_(r['Status']) + ' · Generated ' + fmt_(new Date()) + '</div>' +
     '<h2>Booking details</h2>' + kv_([['Name', r['Name of User']], ['Main guest', r['Main Guest']], ['Contact no.', r['Contact No.']], ['Guest category', r['Category']], ['Ministry / Department', r['Ministry']], ['Purpose of stay', r['Purpose of Use']], ['Unit (assigned)', r['Unit No.'] || 'To be assigned'], ['No. of guests', r['No. of Guests']], ['Check-in', fmt_(r['Arrival']) + ' · ' + keyMode_(r['Arrival'])], ['Check-out', fmt_(r['Departure']) + ' · ' + keyMode_(r['Departure'])], ['Vehicle no.', r['Vehicle Details']], ['Remarks', [r['Special Arrangement'], r['Additional Notes']].filter(String).join(' · ')]]) +
-    '<h2>Terms &amp; Conditions</h2><ul><li>Bookings must be made at least 1 week in advance.</li><li>Check-in &amp; check-out: Tue–Fri 9am–6pm and Sun 8am–11am, accompanied by the Ministry Head / Church Admin. At other times it is a self check-in/out, with keys left at the guard house in a sealed envelope.</li><li>Please take time to read the House Rules posted in the unit.</li><li>Keep the unit tidy. Do not move furniture or remove any items.</li><li>At check-out: throw all rubbish into the large bin near the security booth, switch off all appliances, lock up and return the keys as arranged.</li><li>Please report any damage at once. We kindly ask guests to cover any repair or replacement needed.</li><li>Love gifts go towards cleaning and upkeep. They are offerings, not rental fees.</li></ul><div class="small">☑ Agreed to the Terms &amp; Conditions' + (r['Submitted At'] ? ' on ' + fmt_(r['Submitted At']) : '') + '.</div>' +
+    '<h2>Terms &amp; Conditions</h2><ul><li>Bookings should be made at least 1 week in advance (shorter notice by special consideration only).</li><li>Check-in &amp; check-out: Tue–Fri 9am–6pm and Sun 8am–11am, accompanied by the Ministry Head / Church Admin. At other times it is a self check-in/out, with keys left at the guard house in a sealed envelope.</li><li>Please take time to read the House Rules posted in the unit.</li><li>Keep the unit tidy. Do not move furniture or remove any items.</li><li>At check-out: throw all rubbish into the large bin near the security booth, switch off all appliances, lock up and return the keys as arranged.</li><li>Please report any damage at once. We kindly ask guests to cover any repair or replacement needed.</li><li>Love gifts go towards cleaning and upkeep. They are offerings, not rental fees.</li></ul><div class="small">☑ Agreed to the Terms &amp; Conditions' + (r['Submitted At'] ? ' on ' + fmt_(r['Submitted At']) : '') + '.</div>' +
     (rate ? '<h2>Love gift</h2>' + kv_([['Suggested minimum', 'RM' + rate + ' per night × ' + nights_(r) + ' night(s) = RM' + rate * nights_(r)], ['Love gift pledged', 'RM' + (r['Love Gift (RM)'] || 0)], ['Reference', r['Love Gift Ref'] || id], ['Church account', 'TABERNACLE OF WORSHIP · Hong Leong Bank (Malaysia) · 371 000 128 43']]) : '') +
     '<h2>Signature &amp; approval</h2><table><tr><td style="width:50%">' + (sig ? '<img src="' + sig + '" style="height:60px">' : '<div style="height:60px"></div>') + '<div class="small">Guest signature · ' + esc_(r['Name of User']) + '</div></td><td>' +
     (r['Approved By'] ? '<div class="stamp">✔ Digitally approved by <b>' + esc_(r['Approved By']) + '</b><br>' + esc_(r['Ministry']) + ' · ' + fmt_(r['Approved At']) + '</div>' : '<div style="height:60px"></div><div class="small">Ministry Head / Church Admin</div>') + '</td></tr></table>' +
@@ -435,6 +481,99 @@ function telegram_(html) {
   UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', { method: 'post', muteHttpExceptions: true,
     payload: { chat_id: chat, text: html, parse_mode: 'HTML', disable_web_page_preview: 'true' } });
 }
+
+/* =================== GUEST SPEAKER REMINDERS =================== */
+
+/** Turns on the daily jobs: backup (~2am) and guest speaker reminders (~8am). Run once. */
+function setupDailyJobs() {
+  ScriptApp.getProjectTriggers().filter(t => ['autoBackup', 'dailyReminders'].indexOf(t.getHandlerFunction()) >= 0).forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('autoBackup').timeBased().everyDays(1).atHour(2).inTimezone(CONFIG.TZ).create();
+  ScriptApp.newTrigger('dailyReminders').timeBased().everyDays(1).atHour(8).inTimezone(CONFIG.TZ).create();
+  const b = backupNow_(true);
+  Logger.log('Daily backup (2am) and reminders (8am) are on. First backup: %s', b.url);
+}
+function siteFromProps_() {
+  const s = PropertiesService.getScriptProperties().getProperty('SITE_URL');
+  if (/YOUR-GITHUB/i.test(CONFIG.SITE_URL) && s) CONFIG.SITE_URL = s;
+}
+const HOST_DONE = ['Received', 'Sent to Accounts', 'Closed'];
+function missingHost_(r) {
+  const m = [], apt = r['Stay Option'] === 'Staying in our apartment' || (!r['Stay Option'] && r['Needs Apartment'] === 'Yes');
+  if (!r['Stay Option']) m.push('Where the guest is staying');
+  if (!r['Arrival']) m.push('Arrival date & time');
+  if (apt && !r['Departure']) m.push('Departure date & time');
+  if (apt && !r['Apartment Guests']) m.push('Number of guests in apartment');
+  if (!r['Dietary & Meal Schedule']) m.push('Dietary needs & meal schedule');
+  if (!r['Vehicle Details'] && !/flight|train|bus/i.test(String(r['Mode of Travel'] || ''))) m.push('Vehicle plate / model / colour');
+  if (!r['Account Holder'] || !r['Bank Name'] || !r['Account Number']) m.push('Honorarium bank details');
+  if (String(r['Checklist'] || '').split('|').indexOf('c2') < 0) m.push('Sermon slides');
+  return m;
+}
+function daysUntil_(d) { const x = toDate_(d); if (!(x instanceof Date)) return null; const t = new Date(); t.setHours(0, 0, 0, 0); const y = new Date(x); y.setHours(0, 0, 0, 0); return Math.round((y - t) / 864e5); }
+function picMessage_(r, link) {
+  return 'Hi ' + (r['Attending Personnel'] || '') + ' 👋\n\nYou\'re the PIC / host for *' + r['Guest Name'] + '* (' + (r['Event Date(s)'] || fmtDay_(r['Event Date'])) + ').\n\nPlease check with the guest and fill in the Guest Speaker Hosting Checklist here:\n' + link + '\n\nYou can save and come back anytime, then submit to the Church Admin. 🙏';
+}
+function waUrl_(phone, text) { let d = String(phone || '').replace(/\D/g, ''); if (d.indexOf('0') === 0) d = '6' + d; return 'https://wa.me/' + d + '?text=' + encodeURIComponent(text); }
+/** Runs every morning: 14-day and 3-day reminders for scheduled guest speakers. */
+function dailyReminders() {
+  upgradeSheets_(); siteFromProps_();
+  const t = table_(HOST);
+  t.rows.forEach(r => {
+    if (r['Status'] === 'Closed') return;
+    const ref = r['Arrival'] || r['Event Date'];
+    const days = daysUntil_(ref);
+    if (days === null || days < 0) return;
+    const link = CONFIG.SITE_URL + 'hosting.html?h=' + r['Hosting ID'] + '&k=' + r['Secret'];
+    const p = plain_(r);
+    // 14 days before
+    if (days <= 14 && !r['Reminder 14d Sent'] && HOST_DONE.indexOf(r['Status']) < 0 && r['Status'] !== 'Submitted') {
+      if (r['PIC Email']) mail_(r['PIC Email'], 'Guest speaker hosting: ' + r['Guest Name'] + ' (' + (r['Event Date(s)'] || fmtDay_(r['Event Date'])) + ')',
+        '<p>Hi ' + esc_(r['Attending Personnel'] || '') + ',</p><p>You are the PIC / host for <b>' + esc_(r['Guest Name']) + '</b>' + (r['Church / Ministry From'] ? ' (' + esc_(r['Church / Ministry From']) + ')' : '') + ' on <b>' + esc_(r['Event Date(s)'] || fmtDay_(r['Event Date'])) + '</b>.</p><p>Please check with the guest and fill in the Guest Speaker Hosting Checklist (stay, travel, meals, sermon slides and honorarium details):</p><p><a href="' + link + '">' + link + '</a></p><p>You can save and come back anytime, then submit to the Church Admin. Thank you! 🙏<br>— TOW Church Admin</p>');
+      notify_('🎤 14 days to go · ' + r['Guest Name'], [
+        '🗓️ ' + esc_(r['Event Date(s)'] || fmtDay_(r['Event Date'])) + ' · 🙋 PIC: ' + esc_(r['Attending Personnel'] || '-'),
+        r['PIC Email'] ? '📧 Hosting link emailed to the PIC.' : '⚠️ No PIC email on file. Please send the link on WhatsApp.',
+        '', '💬 Forward to PIC on WhatsApp:', waUrl_(r['PIC Contact'], picMessage_(r, link))
+      ], null);
+      t.sh.getRange(r._row, t.map['Reminder 14d Sent'] + 1).setValue(new Date());
+      if (r['Status'] === 'Scheduled') t.sh.getRange(r._row, t.map['Status'] + 1).setValue('Link sent');
+    }
+    // 3 days before
+    if (days <= 3 && !r['Reminder 3d Sent']) {
+      const miss = missingHost_(p);
+      const apt = p['Stay Option'] === 'Staying in our apartment' || (!p['Stay Option'] && p['Needs Apartment'] === 'Yes');
+      const lines = ['🗓️ ' + esc_(r['Event Date(s)'] || fmtDay_(r['Event Date'])) + ' · 🙋 PIC: ' + esc_(r['Attending Personnel'] || '-')];
+      if (apt) { const st = r['Linked Stay ID'] ? find_(STAY, r['Linked Stay ID']) : null; lines.push('🏠 <b>Prepare the apartment</b>' + (st ? ' · ' + st['Stay ID'] + (st['Unit No.'] ? ' · Unit ' + st['Unit No.'] : ' · unit not assigned yet') : '') + (r['Arrival'] ? ' · arriving ' + fmt_(r['Arrival']) : '')); }
+      lines.push(miss.length ? '⚠️ Still missing: ' + miss.join(', ') : '✅ Hosting checklist details complete');
+      if (miss.length) lines.push('', '💬 Follow up with PIC:', waUrl_(r['PIC Contact'], 'Hi ' + (r['Attending Personnel'] || '') + ', a gentle reminder for *' + r['Guest Name'] + '* in 3 days 🙏\nStill needed: ' + miss.join(', ') + '\nPlease update here: ' + link));
+      lines.push('', 'Open: ' + CONFIG.SITE_URL + 'index.html#' + r['Hosting ID']);
+      notify_((apt ? '🏠 3 days · prepare apartment · ' : '🎤 3 days to go · ') + r['Guest Name'], lines, null);
+      if (miss.length && r['PIC Email']) mail_(r['PIC Email'], 'Reminder: details still needed for ' + r['Guest Name'], '<p>Hi ' + esc_(r['Attending Personnel'] || '') + ',</p><p>A gentle reminder that <b>' + esc_(r['Guest Name']) + '</b> is coming in 3 days. We still need:</p><ul>' + miss.map(x => '<li>' + esc_(x) + '</li>').join('') + '</ul><p>Please update the checklist here: <a href="' + link + '">' + link + '</a></p><p>Thank you! 🙏<br>— TOW Church Admin</p>');
+      t.sh.getRange(r._row, t.map['Reminder 3d Sent'] + 1).setValue(new Date());
+    }
+  });
+}
+function mail_(to, subject, html) { try { MailApp.sendEmail(to, subject, html.replace(/<[^>]+>/g, ''), { htmlBody: html, name: 'TOW Church Admin' }); } catch (e) { Logger.log('Mail failed: ' + e); } }
+function hostEvent_(rec) {
+  let cal; try { cal = CalendarApp.getCalendarById(CONFIG.CALENDAR_ID); } catch (e) { cal = null; }
+  if (!cal || !CONFIG.SYNC_CALENDAR) return rec['Calendar Event ID'] || '';
+  let ev = null; if (rec['Calendar Event ID']) { try { ev = cal.getEventById(rec['Calendar Event ID']); } catch (e) { ev = null; } }
+  const a = toDate_(rec['Arrival']), d = toDate_(rec['Departure']), day = toDate_(rec['Event Date']);
+  if (!(day instanceof Date) && !(a instanceof Date)) return rec['Calendar Event ID'] || '';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const endRef = d instanceof Date ? d : (a instanceof Date ? a : day);
+  if (!ev && endRef < today) return '';
+  const title = '🎤 Guest speaker · ' + rec['Guest Name'] + (rec['Attending Personnel'] ? ' (PIC: ' + rec['Attending Personnel'] + ')' : '');
+  const desc = ['Hosting ID: ' + rec['Hosting ID'], 'Event: ' + (rec['Event Date(s)'] || ''), 'From: ' + (rec['Church / Ministry From'] || '-'), 'PIC: ' + (rec['Attending Personnel'] || '-') + (rec['PIC Contact'] ? ' · ' + rec['PIC Contact'] : ''), 'Hosting Pastor: ' + (rec['Hosting Pastor'] || '-'), 'Apartment: ' + (rec['Stay Option'] || rec['Needs Apartment'] || '-'), '', '(TOW Apartment Stay System)'].join('\n');
+  const timed = a instanceof Date && d instanceof Date && d > a;
+  if (ev) {
+    ev.setTitle(title); ev.setDescription(desc);
+    try { if (timed) ev.setTime(a, d); else ev.setAllDayDate(day instanceof Date ? day : a); } catch (e) {}
+    return ev.getId();
+  }
+  ev = timed ? cal.createEvent(title, a, d, { description: desc }) : cal.createAllDayEvent(title, day instanceof Date ? day : a, { description: desc });
+  return ev.getId();
+}
+function fmtDay_(v) { const d = toDate_(v); return d instanceof Date ? Utilities.formatDate(d, CONFIG.TZ, 'EEE d MMM yyyy') : (v || ''); }
 
 /* =================== CALENDAR =================== */
 

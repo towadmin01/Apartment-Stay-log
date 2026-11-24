@@ -3,8 +3,8 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const store = { get: k => { try { return localStorage.getItem(k) } catch (e) { return null } }, set: (k, v) => { try { localStorage.setItem(k, v) } catch (e) { } }, del: k => { try { localStorage.removeItem(k) } catch (e) { } } };
 const qs = k => new URLSearchParams(location.search).get(k);
-const STATUS_TEXT = { list: "Loading…", headInit: "Logging in…", createApproval: "Creating link…", getApproval: "Loading your form…", submitRequest: "Sending your request…", getHosting: "Loading…", saveHosting: "Saving…", save: "Saving…", cancel: "Cancelling…", markAck: "Updating…", createHosting: "Creating…", updateHosting: "Saving…", makePdf: "Preparing PDF…", backup: "Backing up…" };
-const DONE_TEXT = { list: "", headInit: "Logged in", createApproval: "Link created", submitRequest: "Sent", saveHosting: "Saved", save: "Saved", cancel: "Cancelled", createHosting: "Created", updateHosting: "Saved", makePdf: "PDF ready", backup: "Backup saved" };
+const STATUS_TEXT = { list: "Loading…", headInit: "Loading…", createApproval: "Creating link…", getApproval: "Loading your form…", submitRequest: "Sending your request…", getHosting: "Loading…", saveHosting: "Saving…", save: "Saving…", cancel: "Cancelling…", markAck: "Updating…", createHosting: "Creating…", updateHosting: "Saving…", makePdf: "Preparing PDF…", backup: "Backing up…" };
+const DONE_TEXT = { list: "", headInit: "", createApproval: "Link created", submitRequest: "Sent", saveHosting: "Saved", save: "Saved", cancel: "Cancelled", createHosting: "Created", updateHosting: "Saved", makePdf: "PDF ready", backup: "Backup saved" };
 let _busy = 0, _stT = null;
 function showStatus(text, kind) {
   let el = document.getElementById("statusBar");
@@ -59,7 +59,7 @@ const PAID_CATS = ["Member serving that weekend", "Member, personal or non-servi
 const ALL_CATS = ["Pastors, Guest Speakers & Mission Pastors", ...PAID_CATS];
 const CHURCH_BANK = "TABERNACLE OF WORSHIP · Hong Leong Bank (Malaysia) · 371 000 128 43";
 const TERMS = [
-  "Bookings must be made at least 1 week in advance.",
+  "Bookings should be made at least 1 week in advance (shorter notice by special consideration only).",
   "Check-in &amp; check-out: Tue–Fri 9am–6pm and Sun 8am–11am, accompanied by the Ministry Head / Church Admin. At other times it is a self check-in/out, with keys left at the guard house in a sealed envelope.",
   "Please take time to read the House Rules posted in the unit.",
   "Keep the unit tidy. Do not move furniture or remove any items.",

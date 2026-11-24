@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>TOW · Guest Speaker Hosting</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261124d">
+<link rel="stylesheet" href="style.css?v=20261124e">
 <link rel="icon" type="image/png" href="favicon.png">
 <style>.hg+.hg{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}.hgt{font:600 15px "Cormorant Garamond",serif;color:var(--brown);margin-bottom:6px}.hg .check{margin-top:8px}</style>
 </head>
@@ -107,8 +107,8 @@
     <p class="small muted center">You can come back to this link anytime to update it. Submitting again sends the latest details to the Church Admin.</p>
   </div>
 </div>
-<script src="config.js?v=20261124d"></script>
-<script src="app.js?v=20261124d"></script>
+<script src="config.js?v=20261124e"></script>
+<script src="app.js?v=20261124e"></script>
 <script>
 const H = qs("h"), K = qs("k");
 const CHECKS = [
@@ -127,7 +127,7 @@ const split = s => { const d = toD(s); return d ? [iso(d), `${String(d.getHours(
     if (!H || !K) throw new Error("This page needs the hosting link from the Church Admin.");
     R = (await api("getHosting", { h: H, k: K })).hosting;
     fields().forEach(el => el.value = R[el.dataset.f] ?? "");
-    const opt = document.querySelector(`input[name=stay][value="${R["Stay Option"]}"]`); if (opt) opt.checked = true;
+    const opt = document.querySelector(`input[name=stay][value="${R["Stay Option"] || (R["Needs Apartment"] === "Yes" ? "Staying in our apartment" : R["Needs Apartment"] === "No" ? "" : "")}"]`); if (opt) opt.checked = true;
     [$("arrD").value, $("arrT").value] = split(R["Arrival"]); [$("depD").value, $("depT").value] = split(R["Departure"]);
     const tr = String(R["Transport Needed"] || ""); document.querySelectorAll("#transport input").forEach(c => c.checked = tr.includes(c.value));
     const done = String(R["Checklist"] || "").split("|"); document.querySelectorAll("#checks input").forEach(c => c.checked = done.includes(c.value));
@@ -150,7 +150,7 @@ function render() {
   $("aptPaxWrap").classList.toggle("hide", !apt);
   document.querySelector('#checks input[value="c1"]').closest("label").classList.toggle("hide", !apt);
   const st = R["Status"] || "";
-  $("status").innerHTML = `<b>${esc(R["Hosting ID"])}</b> · ${esc(st)}${R["Submitted At"] ? " · last submitted " + esc(fmtShort(R["Submitted At"])) : ""}${R["Linked Stay ID"] ? "<br>🏠 Apartment request " + esc(R["Linked Stay ID"]) + " is with the Church Admin" : ""}`;
+  $("status").innerHTML = `<b>${esc(R["Hosting ID"])}</b> · ${esc(st)}${R["Event Date"] ? " · 🗓️ " + esc(fmtShort(R["Event Date"])) : ""}${R["Submitted At"] ? " · last submitted " + esc(fmtShort(R["Submitted At"])) : ""}${R["Linked Stay ID"] ? "<br>🏠 Apartment request " + esc(R["Linked Stay ID"]) + " is with the Church Admin" : ""}`;
   const d = data(), g = d["Guest Name"] || "[Guest Speaker’s Name]", p = d["Attending Personnel"] || "[Attending Personnel Name]", ev = d["Event Date(s)"] || "[date(s)]";
   const accom = apt ? `2️⃣ *Accommodation* – we’ll be hosting you at our in-house apartment\n   • Number of guests staying in apartment:\n` : `2️⃣ *Accommodation* – please let us know where you will be staying\n`;
   const text = `Hi ${g}, this is ${p} from Tabernacle of Worship.\n\nWe’re excited to welcome you on ${ev} for your preaching engagement. I’ll be assisting you as your Attending Personnel.\n\nWhen convenient, could you kindly respond to the following:\n\n1️⃣ *Sermon slides* – could you kindly share them with us\n${accom}3️⃣ *Travel details* – arrival & departure confirmation\n   • Arrival date & time:\n   • Departure date & time:\n   • Vehicle plate/model/colour:\n4️⃣ *Meals & dietary needs* – any dietary restrictions (including allergies or sensitivities)\n5️⃣ *Health notes* – anything we should be mindful of (e.g. medication, health conditions, mobility needs)\n6️⃣ *Honorarium/love gift*\n   • Account name:\n   • Bank name:\n   • Bank number:\n\nWe’re looking forward to your ministry with us and are praying for a blessed time together. Please feel free to reach out anytime if you need assistance. 🙏`;
