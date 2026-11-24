@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>TOW Apartment Stay Log · Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261120d">
+<link rel="stylesheet" href="style.css?v=20261124a">
 <link rel="icon" type="image/png" href="favicon.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -54,7 +54,7 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 .rep .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .rep table td,.rep table th{padding:6px 8px;font-size:12.5px}
 .rep td.n,.rep th.n{text-align:right}
-.bar{height:8px;background:var(--accent,var(--gold));border-radius:4px;opacity:.75}
+.mbar{height:8px;background:var(--accent,var(--gold));border-radius:4px;opacity:.75}
 .secgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;align-items:start}
 .sec{border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:12px;background:#fff;overflow:hidden}
 .sec.wide{grid-column:1/-1}
@@ -136,8 +136,8 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 <datalist id="unitList"><option>1</option><option>2</option><option>3</option><option>4</option><option>2 &amp; 4</option></datalist>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=20261120d"></script>
-<script src="app.js?v=20261120d"></script>
+<script src="config.js?v=20261124a"></script>
+<script src="app.js?v=20261124a"></script>
 <script>
 let KEY = "", S = [], HS = [], MINS = [], SITE = "", TAB = "inbox", cur = null, LAST_BACKUP = null;
 const STAY_STATUS = ["Requested", "Booked", "Confirmed", "Checked-in", "Completed", "Cancelled"];
@@ -390,7 +390,7 @@ function renderReport() {
     <div class="kpis"><div class="kpi"><span>🏠 Stays</span><b>${rows.length}</b></div><div class="kpi"><span>🌙 Nights</span><b>${sum(rows, "Nights")}</b></div><div class="kpi"><span>👥 Guests</span><b>${sum(rows, "No. of Guests")}</b></div><div class="kpi"><span>💝 Love gifts pledged</span><b>RM${sum(rows, "Love Gift (RM)").toLocaleString()}</b></div></div>
     <div class="secgrid">
     ${sec("unit", "🚪", "By unit", "#9a7d3f", "4 units", tbl(["Unit", "Stays", "Nights", "Guests"], byUnit) + '<p class="small muted" style="margin:6px 0 0">A stay using two units counts under each unit.</p>')}
-    ${sec("month", "📅", "By month", "#5f8a68", pl(rows.length, "stay"), tbl(["Month", "Stays", "Nights", ""], byMonth.map(([m, s, n]) => [m, s, n, `<div class="bar" style="width:${Math.round(n / maxN * 100)}%;min-width:${n ? 4 : 0}px"></div>`])))}
+    ${sec("month", "📅", "By month", "#5f8a68", pl(rows.length, "stay"), tbl(["Month", "Stays", "Nights", ""], byMonth.map(([m, s, n]) => [m, s, n, `<div class="mbar" style="width:${Math.round(n / maxN * 100)}%;min-width:${n ? 4 : 0}px"></div>`])))}
     ${sec("cat", "🏷️", "By guest category", "#5a7896", pl(byCat.length, "category", "categories"), byCat.length ? tbl(["Category", "Stays", "Nights", "Love gifts"], byCat) : '<p class="muted small">No stays.</p>')}
     ${sec("min", "⛪", "By ministry", "#a0674b", pl(byMin.length, "ministry", "ministries"), byMin.length ? tbl(["Ministry", "Stays", "Nights", "Love gifts"], byMin) : '<p class="muted small">No paid stays by ministry yet.</p>')}
     ${sec("host", "🎤", "Guest speakers hosted", "#7b6a9c", hs.length, hs.length ? tbl(["Guest", "Event", "PIC", "Stay"], hs.map(h => [esc(h["Guest Name"]), esc(h["Event Date(s)"] || ""), esc(h["Attending Personnel"] || ""), esc(h["Stay Option"] || "")])).replace(/class="n"/g, "") : '<p class="muted small">None recorded through the hosting checklist this year.</p>', true)}
