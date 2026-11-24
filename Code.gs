@@ -5,7 +5,7 @@
  */
 
 const CONFIG = {
-  SITE_URL: 'https://YOUR-GITHUB-USERNAME.github.io/tow-apartment-log/',   // ← change after GitHub Pages is on
+  SITE_URL: 'https://YOUR-GITHUB-USERNAME.github.io/tow-apartment-log/',   // optional: leave as is and the script learns your site address automatically
   CALENDAR_ID: '570299c8872b059e63a109013c0de95228d63a90c299b670f5439a6a9bb5fa60@group.calendar.google.com',
   TZ: 'Asia/Kuala_Lumpur',
   SYNC_CALENDAR: true,
@@ -112,6 +112,11 @@ function doPost(e) {
   try {
     const b = JSON.parse(e.postData.contents || '{}');
     const p = PropertiesService.getScriptProperties();
+    // Site address: use SITE_URL if you set it; otherwise learn it from the pages themselves (no editing needed)
+    if (/YOUR-GITHUB/i.test(CONFIG.SITE_URL)) {
+      if (b.site && /^https:\/\/[^\s"'<>]+\/$/.test(b.site) && !/localhost|script\.google/.test(b.site) && b.site !== p.getProperty('SITE_URL')) p.setProperty('SITE_URL', b.site);
+      if (p.getProperty('SITE_URL')) CONFIG.SITE_URL = p.getProperty('SITE_URL');
+    }
     const isAdmin = b.key && b.key === p.getProperty('ADMIN_PASSCODE');
     const isHead = isAdmin || (b.hkey && b.hkey === p.getProperty('HEAD_PASSCODE'));
     const lock = LockService.getScriptLock(); lock.waitLock(25000);
@@ -126,7 +131,7 @@ function doPost(e) {
         case 'headInit':      need_(isHead); return json_({ ok: true, ministries: ministries_(false), availability: availability_() });
         case 'createApproval':need_(isHead); return json_({ ok: true, approval: createApproval_(b) });
         // Admin
-        case 'list':          need_(isAdmin); return json_({ ok: true, stays: rows_(STAY), hosting: hostingList_(), ministries: ministries_(true), site: CONFIG.SITE_URL, lastBackup: JSON.parse(PropertiesService.getScriptProperties().getProperty('LAST_BACKUP') || 'null') });
+        case 'list':          need_(isAdmin); return json_({ ok: true, stays: rows_(STAY), hosting: hostingList_(), approvals: rows_(APPR).map(x => Object.assign(x, { link: CONFIG.SITE_URL + 'request.html?t=' + x['Approval ID'] })), ministries: ministries_(true), site: CONFIG.SITE_URL, sheet: { name: SpreadsheetApp.getActive().getName(), url: SpreadsheetApp.getActive().getUrl() }, folderUrl: folder_().getUrl(), lastBackup: JSON.parse(PropertiesService.getScriptProperties().getProperty('LAST_BACKUP') || 'null') });
         case 'save':          need_(isAdmin); return json_({ ok: true, record: saveStay_(b.record || {}) });
         case 'cancel':        need_(isAdmin); return json_({ ok: true, record: setStay_(b.id, { 'Status': 'Cancelled' }) });
         case 'markAck':       need_(isAdmin); return json_({ ok: true, record: setStay_(b.id, { 'Acknowledged At': new Date() }, true) });

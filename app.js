@@ -19,7 +19,7 @@ async function api(action, body = {}) {
   if (!url || url.indexOf("PASTE") >= 0) { showStatus("This page isn't connected yet (config.js)", "err"); throw new Error("This page isn't connected yet (config.js).") }
   _busy++; showStatus(STATUS_TEXT[action] || "Working…", "busy");
   try {
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, ...body }) });
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, site: location.origin + location.pathname.replace(/[^/]*$/, ""), ...body }) });
     let j; try { j = await res.json() } catch (e) { throw new Error("Couldn't reach the server. Check the web app is deployed with access set to Anyone.") }
     if (!j.ok) throw new Error(j.error === "Wrong passcode" ? "Wrong passcode. Check capital letters and try again." : (j.error || "Something went wrong"));
     _busy--; if (!_busy) { DONE_TEXT[action] ? showStatus(DONE_TEXT[action], "ok") : (document.getElementById("statusBar") || {}).className = "" }

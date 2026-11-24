@@ -6,13 +6,15 @@
 <meta name="robots" content="noindex, nofollow">
 <title>TOW Apartment Stay Log · Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261124a">
+<link rel="stylesheet" href="style.css?v=20261124d">
 <link rel="icon" type="image/png" href="favicon.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 body{font-size:14.5px}
 header.bar{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn.icon{width:38px;height:38px;padding:0;display:inline-grid;place-items:center;font-size:17px;color:var(--muted)}
+.btn.icon:hover{color:var(--brown)}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
 .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
 .stat .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
@@ -54,6 +56,14 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 .rep .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .rep table td,.rep table th{padding:6px 8px;font-size:12.5px}
 .rep td.n,.rep th.n{text-align:right}
+.adm{display:grid;gap:14px}
+.adm .box{border:1px solid var(--line);border-left:5px solid var(--accent,var(--gold));border-radius:12px;padding:14px 16px;background:#fff}
+.adm .box h3{font:600 18px "Cormorant Garamond",serif;color:var(--accent,var(--brown));margin:0 0 4px;display:flex;gap:8px;align-items:center}
+.adm .box p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.adm .url{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--soft);border-radius:9px;padding:9px 12px;font-size:13px;word-break:break-all}
+.adm .url code{flex:1;min-width:200px;color:var(--brown);font:500 13px Jost}
+.adm table td{font-size:13px}
+.adm .btns{display:flex;gap:8px;flex-wrap:wrap}
 .mbar{height:8px;background:var(--accent,var(--gold));border-radius:4px;opacity:.75}
 .secgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;align-items:start}
 .sec{border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:12px;background:#fff;overflow:hidden}
@@ -70,7 +80,7 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 .sec th{color:var(--accent)}
 @media print{
   body{background:#fff}
-  #loginView,header.bar,.stats,#unitsCard,.tabs,.filters,.no-print,.wrap.wide>p,.drawer,.ov,.toast{display:none!important}
+  #loginView,header.bar,.stats,#unitsCard,.tabs,.filters,.no-print,.drawer,.ov,.toast{display:none!important}
   .wrap.wide{max-width:none;padding:0}
   .card{border:0;padding:0;margin:0}
   .rep .kpis{grid-template-columns:repeat(4,1fr)}
@@ -104,6 +114,8 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
       <button class="btn sm" id="xlsBtn">⬇ Excel</button>
       <button class="btn sm" id="newHostBtn">+ Guest speaker</button>
       <button class="btn sm pri" id="newStayBtn">+ New stay</button>
+      <button class="btn sm icon" id="linksBtn" title="Share links &amp; admin">⚙</button>
+      <button class="btn sm icon" id="logout" title="Sign out"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
     </div>
   </header>
   <div class="stats" id="stats"></div>
@@ -117,13 +129,13 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
       <select id="fYear"><option value="">All years</option></select>
     </div>
     <div style="overflow-x:auto" id="tableWrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+    <div id="adminWrap" class="hide"></div>
     <div id="reportWrap" class="hide">
-      <div class="toolbar no-print" style="align-items:center"><select id="rYear" style="width:auto"></select><button class="btn sm" id="showAll">👁 Show all</button><button class="btn sm" id="hideAll">Hide all</button><button class="btn sm pri" id="printBtn">🖨 Print / Save as PDF</button><span style="flex:1"></span><button class="btn sm" id="backupBtn">☁️ Back up now</button><span class="small muted" id="backupInfo"></span></div>
+      <div class="toolbar no-print" style="align-items:center"><select id="rYear" style="width:auto"></select><button class="btn sm" id="showAll">👁 Show all</button><button class="btn sm" id="hideAll">Hide all</button><button class="btn sm pri" id="printBtn">🖨 Print / Save as PDF (A4)</button><button class="btn sm" id="csvBtn">⬇ CSV</button><span style="flex:1"></span><button class="btn sm" id="backupBtn">☁️ Back up now</button><span class="small muted" id="backupInfo"></span></div>
       <p class="small muted no-print" style="margin:-4px 0 12px">Tap 👁 on a section to hide it. Hidden sections are left out when you print.</p>
       <div id="report"></div>
     </div>
   </section>
-  <p class="small muted center">Links to share · Ministry Heads: <a id="headLink" target="_blank" style="color:var(--gold)"></a> · <a href="#" id="logout" style="color:var(--gold)">Sign out</a></p>
 </div>
 
 <div class="ov" id="ov"></div>
@@ -136,10 +148,10 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 <datalist id="unitList"><option>1</option><option>2</option><option>3</option><option>4</option><option>2 &amp; 4</option></datalist>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=20261124a"></script>
-<script src="app.js?v=20261124a"></script>
+<script src="config.js?v=20261124d"></script>
+<script src="app.js?v=20261124d"></script>
 <script>
-let KEY = "", S = [], HS = [], MINS = [], SITE = "", TAB = "inbox", cur = null, LAST_BACKUP = null;
+let KEY = "", SHEET = null, FOLDER = "", S = [], HS = [], AP = [], MINS = [], SITE = "", TAB = "inbox", cur = null, LAST_BACKUP = null;
 const STAY_STATUS = ["Requested", "Booked", "Confirmed", "Checked-in", "Completed", "Cancelled"];
 const HOST_STATUS = ["Link sent", "In progress", "Submitted", "Received", "Sent to Accounts", "Closed"];
 const HEAD = ["Stay ID","Status","Category","Name of User","Main Guest","Purpose of Use","Ministry","Ministry Head","Attending Personnel","Contact No.","Unit No.","No. of Guests","Arrival","Departure","Nights","Vehicle Details","Church Transport","Transport PIC","Guest Preferences / Special Notes","Love Gift (RM)","Love Gift Ref","Special Arrangement","Step 1: Assign Cleaners","Step 2: Unit Preparation","Step 3: Guest Essentials","Step 4: Before Check-in","Step 5: Meal Arrangement","Step 6: After Check-out","Final Checked By","Final Check Date","Additional Notes","Source","Approved By","Approved At","Submitted At","Acknowledged At","Hosting ID","PDF"];
@@ -155,8 +167,9 @@ $("loginBtn").onclick = async () => {
   finally { $("loginBtn").disabled = false }
 };
 if (typeof pwToggle === "function") pwToggle("passcode"); else alert("Please upload the latest app.js and style.css to GitHub as well.");
-$("logout").onclick = e => { e.preventDefault(); store.del("tow-admin-key"); location.reload() };
-async function load() { const j = await call("list"); S = j.stays; HS = j.hosting; MINS = j.ministries; SITE = j.site; LAST_BACKUP = j.lastBackup || null; render(); showBackup() }
+$("logout").onclick = e => { e.preventDefault(); if ($("logout").dataset.c !== "1") { $("logout").dataset.c = "1"; $("logout").title = "Tap again to sign out"; toast("Tap ⎋ again to sign out"); setTimeout(() => $("logout").dataset.c = "", 3000); return } store.del("tow-admin-key"); location.reload() };
+$("linksBtn").onclick = () => { TAB = "admin"; render(); $("adminWrap").scrollIntoView({ behavior: "smooth", block: "start" }) };
+async function load() { const j = await call("list"); SHEET = j.sheet || null; FOLDER = j.folderUrl || ""; S = j.stays; HS = j.hosting; AP = j.approvals || []; MINS = j.ministries; SITE = /YOUR-GITHUB/i.test(j.site || "") ? location.origin + location.pathname.replace(/[^/]*$/, "") : j.site; LAST_BACKUP = j.lastBackup || null; render(); showBackup() }
 $("refreshBtn").onclick = async () => { try { await load(); toast("Up to date") } catch (e) { toast(e.message) } };
 function openFromHash() { const id = decodeURIComponent(location.hash.slice(1)); if (!id) return; const s = S.find(x => x["Stay ID"] === id); if (s) return openStay(s); const h = HS.find(x => x["Hosting ID"] === id); if (h) openHost(h) }
 window.addEventListener("hashchange", openFromHash);
@@ -166,7 +179,6 @@ const live = () => S.filter(r => r.Status !== "Cancelled");
 const minOf = name => MINS.find(m => m.ministry === name);
 const accounts = () => MINS.find(m => m.ministry === "Accounts");
 function render() {
-  $("headLink").textContent = SITE + "head.html"; $("headLink").href = SITE + "head.html";
   const people = new Set(); S.forEach(r => ["Attending Personnel", "Transport PIC", "Step 1: Assign Cleaners", "Step 2: Unit Preparation", "Step 3: Guest Essentials", "Step 4: Before Check-in", "Step 5: Meal Arrangement", "Step 6: After Check-out", "Final Checked By"].forEach(k => r[k] && String(r[k]).length < 40 && people.add(String(r[k]).trim())));
   $("people").innerHTML = [...people].sort().map(p => `<option>${esc(p)}</option>`).join("");
   const years = [...new Set(S.map(r => (r.Arrival || "").slice(0, 4)).filter(Boolean))].sort().reverse();
@@ -192,16 +204,18 @@ function renderUnits() {
 const inboxItems = () => [...S.filter(r => r.Status === "Requested").map(r => ({ t: "stay", r })), ...HS.filter(h => h.Status === "Submitted").map(h => ({ t: "host", r: h }))];
 function renderTabs() {
   const n = inboxItems().length;
-  $("tabs").innerHTML = [["inbox", "Inbox", n], ["stays", "All stays"], ["hosting", "Guest speakers"], ["reports", "Reports"]].map(([k, l, c]) => `<button class="tab ${TAB === k ? "on" : ""}" data-t="${k}">${l}${c ? `<span class="c">${c}</span>` : ""}</button>`).join("");
+  $("tabs").innerHTML = [["inbox", "Inbox", n], ["stays", "All stays"], ["hosting", "Guest speakers"], ["reports", "Reports"], ["admin", "⚙ Admin"]].map(([k, l, c]) => `<button class="tab ${TAB === k ? "on" : ""}" data-t="${k}">${l}${c ? `<span class="c">${c}</span>` : ""}</button>`).join("");
   document.querySelectorAll(".tab").forEach(b => b.onclick = () => { TAB = b.dataset.t; $("fStatus").value = ""; render() });
   const st = TAB === "hosting" ? HOST_STATUS : STAY_STATUS, fs = $("fStatus").value;
   $("fStatus").innerHTML = `<option value="">All status</option>` + st.map(s => `<option>${s}</option>`).join(""); $("fStatus").value = st.includes(fs) ? fs : "";
   $("filters").classList.toggle("hide", TAB === "inbox" || TAB === "reports");
-  $("tableWrap").classList.toggle("hide", TAB === "reports"); $("reportWrap").classList.toggle("hide", TAB !== "reports");
+  $("tableWrap").classList.toggle("hide", TAB === "reports" || TAB === "admin"); $("reportWrap").classList.toggle("hide", TAB !== "reports"); $("adminWrap").classList.toggle("hide", TAB !== "admin");
+  $("filters").classList.toggle("hide", ["inbox", "reports", "admin"].includes(TAB));
 }
 ["q", "fStatus", "fUnit", "fYear"].forEach(id => $(id).addEventListener("input", renderTable));
 function renderTable() {
   if (TAB === "reports") return renderReport();
+  if (TAB === "admin") return renderAdmin();
   const q = $("q").value.toLowerCase(), fs = $("fStatus").value, fu = $("fUnit").value, fy = $("fYear").value;
   if (TAB === "inbox") {
     const items = inboxItems();
@@ -403,6 +417,61 @@ function renderReport() {
     store.set("tow-rep-hidden", JSON.stringify([...hidden])); el.querySelector(".eye").innerHTML = el.classList.contains("collapsed") ? EYE_OFF : EYE;
   });
 }
+/* ---------- CSV export ---------- */
+function downloadCSV(name, rows) {
+  const csv = rows.map(r => r.map(v => { const s = String(v ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }).join(",")).join("\r\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 500);
+}
+function reportCSV(y) {
+  y = y || $("rYear").value || String(new Date().getFullYear());
+  const rows = S.filter(r => (r.Arrival || "").startsWith(y) && !["Cancelled", "Requested"].includes(r.Status)).sort((a, b) => toD(a.Arrival) - toD(b.Arrival));
+  const sum = (arr, k) => arr.reduce((a, r) => a + (+r[k] || 0), 0);
+  const out = [[`TOW Apartment Stay Report ${y}`], [`Prepared ${fmtShort(iso(new Date()))}`, "Excludes cancelled stays and requests waiting for a unit"], [],
+    ["SUMMARY"], ["Stays", "Nights", "Guests", "Love gifts pledged (RM)"], [rows.length, sum(rows, "Nights"), sum(rows, "No. of Guests"), sum(rows, "Love Gift (RM)")], [],
+    ["BY UNIT"], ["Unit", "Stays", "Nights", "Guests"], ...[1, 2, 3, 4].map(u => { const a = rows.filter(r => unitsOf(r["Unit No."]).includes(String(u))); return [`Unit ${u}`, a.length, sum(a, "Nights"), sum(a, "No. of Guests")] }), [],
+    ["BY MONTH"], ["Month", "Stays", "Nights"], ...["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => { const a = rows.filter(r => toD(r.Arrival).getMonth() === i); return [m, a.length, sum(a, "Nights")] }), [],
+    ["BY GUEST CATEGORY"], ["Category", "Stays", "Nights", "Love gifts (RM)"], ...ALL_CATS.map(c => { const a = rows.filter(r => r.Category === c); return [c, a.length, sum(a, "Nights"), sum(a, "Love Gift (RM)")] }), [],
+    ["BY MINISTRY"], ["Ministry", "Stays", "Nights", "Love gifts (RM)"], ...[...new Set(rows.map(r => r.Ministry).filter(Boolean))].sort().map(m => { const a = rows.filter(r => r.Ministry === m); return [m, a.length, sum(a, "Nights"), sum(a, "Love Gift (RM)")] }), [],
+    ["ALL STAYS"], ["Stay ID", "Guest", "Category", "Ministry", "Unit", "Arrival", "Departure", "Nights", "Guests", "Love gift (RM)", "Status"],
+    ...rows.map(r => [r["Stay ID"], r["Name of User"], r.Category, r.Ministry, r["Unit No."], fmtShort(r.Arrival), fmtShort(r.Departure), r.Nights, r["No. of Guests"], r["Love Gift (RM)"] || 0, r.Status])];
+  downloadCSV(`TOW-Apartment-Report-${y}.csv`, out);
+}
+$("csvBtn").onclick = () => reportCSV();
+
+/* ---------- Admin tab ---------- */
+function renderAdmin() {
+  const headUrl = SITE + "head.html", adminUrl = SITE + "index.html";
+  const headMsg = `Hi Pastor / Ministry Head 👋\n\nHere's the TOW Apartment page for checking availability and approving stays for your ministry members:\n${headUrl}\n\nThe passcode will be sent to you separately. 🙏\n— TOW Church Admin`;
+  const years = [...new Set(S.map(r => (r.Arrival || "").slice(0, 4)).filter(Boolean))].sort().reverse();
+  const openHS = HS.filter(h => h.Status !== "Closed").sort((a, b) => String(b["Created At"]).localeCompare(String(a["Created At"])));
+  const aps = AP.slice().sort((a, b) => String(b["Created At"]).localeCompare(String(a["Created At"]))).slice(0, 30);
+  const linkMsg = h => `Hi ${h["Attending Personnel"] || ""} 👋\n\nYou're the PIC / host for *${h["Guest Name"]}*${h["Event Date(s)"] ? " (" + h["Event Date(s)"] + ")" : ""}.\n\nPlease fill in the Guest Speaker Hosting Checklist here:\n${h.link}\n\nYou can save and come back anytime, then submit to the Church Admin. 🙏`;
+  $("adminWrap").innerHTML = `<div class="adm">
+    <div class="box" style="--accent:#3f7a5a"><h3>📊 Google Sheet${SHEET ? ` · ${esc(SHEET.name)}` : ""}</h3><p>All records live here: Stay Log, Hosting, Approvals, Ministries (edit heads &amp; WhatsApp numbers here) and Summary.</p>
+      ${SHEET ? `<div class="url"><code>${esc(SHEET.url)}</code><button class="btn sm" data-copy="${esc(SHEET.url)}">Copy</button><a class="btn sm pri" target="_blank" rel="noopener" href="${esc(SHEET.url)}">Open sheet</a>${FOLDER ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(FOLDER)}">📁 Drive records (PDFs &amp; backups)</a>` : ""}</div>` : `<p>Update Code.gs in Apps Script (Deploy → New version) to show the sheet link here.</p>`}</div>
+    <div class="box" style="--accent:#9a7d3f"><h3>🔗 Ministry Head page</h3><p>Share with Ministry Heads to check availability and approve stays. Send the passcode separately.</p>
+      <div class="url"><code>${esc(headUrl)}</code><button class="btn sm" data-copy="${esc(headUrl)}">Copy</button><a class="btn sm" target="_blank" rel="noopener" href="${esc(waLink("", headMsg))}">💬 WhatsApp</a><a class="btn sm" target="_blank" rel="noopener" href="${esc(headUrl)}">Open</a></div></div>
+    <div class="box" style="--accent:#7b6a9c"><h3>🎤 Hosting checklist links <span class="small muted" style="font:400 12px Jost">(${openHS.length} open)</span></h3><p>Each guest speaker has their own private link for the PIC / Hosting Pastor.</p>
+      ${openHS.length ? `<div style="overflow-x:auto"><table><thead><tr><th>Guest</th><th>PIC</th><th>Status</th><th></th></tr></thead><tbody>${openHS.map(h => `<tr><td><b style="font-weight:500">${esc(h["Guest Name"])}</b><div class="small muted">${esc(h["Hosting ID"])} · ${esc(h["Event Date(s)"] || "")}</div></td><td>${esc(h["Attending Personnel"] || "")}</td><td><span class="pill">${esc(h.Status)}</span></td><td><div class="btns"><button class="btn sm" data-copy="${esc(h.link)}">Copy</button><a class="btn sm" target="_blank" rel="noopener" href="${esc(waLink(h["PIC Contact"], linkMsg(h)))}">💬 PIC</a><a class="btn sm" target="_blank" rel="noopener" href="${esc(h.link)}">Open</a></div></td></tr>`).join("")}</tbody></table></div>` : `<p>No open guest speakers. Use <b>+ Guest speaker</b> to create one.</p>`}</div>
+    <div class="box" style="--accent:#5a7896"><h3>🏠 Member stay links <span class="small muted" style="font:400 12px Jost">(latest ${aps.length})</span></h3><p>Links created by Ministry Heads. Each link works once.</p>
+      ${aps.length ? `<div style="overflow-x:auto"><table><thead><tr><th>Member</th><th>Approved by</th><th>Dates</th><th>Status</th><th></th></tr></thead><tbody>${aps.map(p => `<tr><td>${esc(p["Member Name"] || "–")}<div class="small muted">${esc(p.Category || "")}</div></td><td>${esc(p["Ministry Head"] || "")}<div class="small muted">${esc(p.Ministry || "")} · ${fmtShort(p["Created At"])}</div></td><td class="small">${fmtShort(p["Check-in"])}<br>${fmtShort(p["Check-out"])}</td><td>${p["Used By Stay"] ? `<span class="pill p-Confirmed">Submitted · ${esc(p["Used By Stay"])}</span>` : `<span class="pill p-Requested">Waiting for member</span>`}</td><td>${p["Used By Stay"] ? "" : `<div class="btns"><button class="btn sm" data-copy="${esc(p.link)}">Copy</button><a class="btn sm" target="_blank" rel="noopener" href="${esc(p.link)}">Open</a></div>`}</td></tr>`).join("")}</tbody></table></div>` : `<p>No links created yet.</p>`}</div>
+    <div class="box" style="--accent:#5f8a68"><h3>🖨 Reports &amp; exports</h3><p>View the report first, then print it as an A4 PDF or download it as CSV.</p>
+      <div class="btns" style="align-items:center"><select id="admYear" style="width:auto">${years.map(y => `<option${y === String(new Date().getFullYear()) ? " selected" : ""}>${y}</option>`).join("")}</select>
+      <button class="btn sm" id="admView">👁 View report</button><button class="btn sm pri" id="admPdf">🖨 PDF (A4)</button><button class="btn sm" id="admCsv">⬇ Report CSV</button><button class="btn sm" id="admXls">⬇ All data (Excel)</button></div></div>
+    <div class="box" style="--accent:#a0674b"><h3>☁️ Backup</h3><p>A full copy is saved to Drive every night (TOW Apartment Records → Backups, latest 30 kept).</p>
+      <div class="btns" style="align-items:center"><button class="btn sm" id="admBackup">☁️ Back up now</button><span class="small muted" id="admBackupInfo">${LAST_BACKUP ? "Last backup: " + fmtShort(LAST_BACKUP.at) + (LAST_BACKUP.auto ? " (auto)" : "") : "No backup yet"}</span>${LAST_BACKUP && LAST_BACKUP.url ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(LAST_BACKUP.url)}">Open last backup</a>` : ""}</div></div>
+    <div class="box" style="--accent:#6b4f33"><h3>🔐 This admin page</h3><div class="url"><code>${esc(adminUrl)}</code><button class="btn sm" data-copy="${esc(adminUrl)}">Copy</button></div></div>
+  </div>`;
+  document.querySelectorAll("#adminWrap [data-copy]").forEach(b => b.onclick = e => copyText(b.dataset.copy, e.target));
+  const goReport = () => { TAB = "reports"; render(); $("rYear").value = $("admYear") ? $("admYear").value : $("rYear").value; renderReport() };
+  $("admView").onclick = () => { const y = $("admYear").value; TAB = "reports"; render(); $("rYear").value = y; renderReport() };
+  $("admPdf").onclick = () => { const y = $("admYear").value; TAB = "reports"; render(); $("rYear").value = y; renderReport(); setTimeout(() => window.print(), 300) };
+  $("admCsv").onclick = () => reportCSV($("admYear").value);
+  $("admXls").onclick = () => $("xlsBtn").click();
+  $("admBackup").onclick = async () => { $("admBackup").disabled = true; try { const j = await call("backup"); LAST_BACKUP = j.backup; showBackup(); renderAdmin() } catch (e) { $("admBackup").disabled = false } };
+}
+
 function setAllSections(hide) { const keys = ["unit", "month", "cat", "min", "host", "all"]; store.set("tow-rep-hidden", JSON.stringify(hide ? keys : [])); renderReport() }
 
 /* ---------- Excel ---------- */
