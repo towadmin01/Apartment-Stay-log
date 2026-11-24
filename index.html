@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>TOW Apartment Stay Log · Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261124e">
+<link rel="stylesheet" href="style.css?v=20261124f">
 <link rel="icon" type="image/png" href="favicon.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -58,6 +58,15 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 .rep .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .rep table td,.rep table th{padding:6px 8px;font-size:12.5px}
 .rep td.n,.rep th.n{text-align:right}
+.rtool{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;background:var(--soft);display:grid;gap:9px}
+.rrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rrow>label{width:62px;margin:0;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.rrow select,.rrow input{width:auto;padding:8px 10px;font-size:13.5px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:6px 12px;font:500 12.5px Jost;color:var(--muted);cursor:pointer}
+.chip.on{background:var(--brown);border-color:var(--brown);color:#fff}
+.gl{columns:2;column-gap:24px}.gl div{break-inside:avoid;padding:4px 0;border-bottom:1px dashed #eee5d6;font-size:13px}
+.gl .d{color:var(--muted);font-size:12px}
 .adm{display:grid;gap:14px}
 .adm .box{border:1px solid var(--line);border-left:5px solid var(--accent,var(--gold));border-radius:12px;padding:14px 16px;background:#fff}
 .adm .box h3{font:600 18px "Cormorant Garamond",serif;color:var(--accent,var(--brown));margin:0 0 4px;display:flex;gap:8px;align-items:center}
@@ -136,8 +145,12 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
     <div style="overflow-x:auto" id="tableWrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
     <div id="adminWrap" class="hide"></div>
     <div id="reportWrap" class="hide">
-      <div class="toolbar no-print" style="align-items:center"><select id="rYear" style="width:auto"></select><button class="btn sm" id="showAll">👁 Show all</button><button class="btn sm" id="hideAll">Hide all</button><button class="btn sm pri" id="printBtn">🖨 Print / Save as PDF (A4)</button><button class="btn sm" id="csvBtn">⬇ CSV</button><span style="flex:1"></span><button class="btn sm" id="backupBtn">☁️ Back up now</button><span class="small muted" id="backupInfo"></span></div>
-      <p class="small muted no-print" style="margin:-4px 0 12px">Tap 👁 on a section to hide it. Hidden sections are left out when you print.</p>
+      <div class="rtool no-print">
+        <div class="rrow"><label>Period</label><select id="rPreset"></select><input type="date" id="rFrom"><span class="muted">to</span><input type="date" id="rTo"></div>
+        <div class="rrow"><label>Stays</label><select id="rCat"><option value="all">All stays</option><option value="g">🎤 Guest speaker stays</option><option value="p">🏠 Paid stays</option></select></div>
+        <div class="rrow"><label>Include</label><div class="chips" id="rChips"></div></div>
+        <div class="rrow"><label></label><button class="btn sm pri" id="printBtn">🖨 Print / Save as PDF (A4)</button><button class="btn sm" id="csvBtn">⬇ CSV</button><button class="btn sm" id="xlsBtn2">⬇ All data (Excel)</button></div>
+      </div>
       <div id="report"></div>
     </div>
   </section>
@@ -153,8 +166,8 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 <datalist id="unitList"><option>1</option><option>2</option><option>3</option><option>4</option><option>2 &amp; 4</option></datalist>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=20261124e"></script>
-<script src="app.js?v=20261124e"></script>
+<script src="config.js?v=20261124f"></script>
+<script src="app.js?v=20261124f"></script>
 <script>
 let KEY = "", SHEET = null, FOLDER = "", S = [], HS = [], AP = [], MINS = [], SITE = "", TAB = "inbox", cur = null, LAST_BACKUP = null;
 const STAY_STATUS = ["Requested", "Booked", "Confirmed", "Checked-in", "Completed", "Cancelled"];
@@ -181,6 +194,7 @@ window.addEventListener("hashchange", openFromHash);
 
 /* ---------- render ---------- */
 const live = () => S.filter(r => r.Status !== "Cancelled");
+const GS_CAT = "Pastors, Guest Speakers & Mission Pastors";
 const minOf = name => MINS.find(m => m.ministry === name);
 const accounts = () => MINS.find(m => m.ministry === "Accounts");
 function render() {
@@ -209,7 +223,7 @@ function renderUnits() {
 const inboxItems = () => [...S.filter(r => r.Status === "Requested").map(r => ({ t: "stay", r })), ...HS.filter(h => h.Status === "Submitted").map(h => ({ t: "host", r: h }))];
 function renderTabs() {
   const n = inboxItems().length;
-  $("tabs").innerHTML = [["inbox", "Inbox", n], ["stays", "All stays"], ["hosting", "Guest speakers"], ["reports", "Reports"], ["admin", "⚙ Admin"]].map(([k, l, c]) => `<button class="tab ${TAB === k ? "on" : ""}" data-t="${k}">${l}${c ? `<span class="c">${c}</span>` : ""}</button>`).join("");
+  $("tabs").innerHTML = [["inbox", "Inbox", n], ["gstays", "🎤 Guest speaker stays"], ["pstays", "🏠 Paid stays"], ["hosting", "Speaker schedule"], ["reports", "Reports"], ["admin", "⚙ Admin"]].map(([k, l, c]) => `<button class="tab ${TAB === k ? "on" : ""}" data-t="${k}">${l}${c ? `<span class="c">${c}</span>` : ""}</button>`).join("");
   document.querySelectorAll(".tab").forEach(b => b.onclick = () => { TAB = b.dataset.t; $("fStatus").value = ""; render(); if (window.scrollY > 200) window.scrollTo({ top: 0, behavior: "smooth" }) });
   const st = TAB === "hosting" ? HOST_STATUS : STAY_STATUS, fs = $("fStatus").value;
   $("fStatus").innerHTML = `<option value="">All status</option>` + st.map(s => `<option>${s}</option>`).join(""); $("fStatus").value = st.includes(fs) ? fs : "";
@@ -231,10 +245,11 @@ function renderTable() {
     $("tbody").innerHTML = items.length ? items.map(({ t, r }) => t === "stay"
       ? `<tr class="trow" data-s="${esc(r["Stay ID"])}"><td class="small muted">${esc(r["Stay ID"])}</td><td>🏠 Stay request</td><td><b style="font-weight:500">${esc(r["Name of User"])}</b><div class="small muted">${esc(r.Category)}</div></td><td>${fmtShort(r.Arrival)}<br>${fmtShort(r.Departure)}</td><td class="hide-m small">${esc(r.Ministry || r.Source || "")}${r["Approved By"] ? "<br>✔ " + esc(r["Approved By"]) : ""}</td><td><span class="pill p-Requested">Assign unit</span></td></tr>`
       : `<tr class="trow" data-h="${esc(r["Hosting ID"])}"><td class="small muted">${esc(r["Hosting ID"])}</td><td>🎤 Hosting</td><td><b style="font-weight:500">${esc(r["Guest Name"])}</b><div class="small muted">${esc(r["Stay Option"])}</div></td><td>${esc(r["Event Date(s)"] || "")}</td><td class="hide-m small">PIC: ${esc(r["Attending Personnel"])}</td><td><span class="pill p-Submitted">Review</span></td></tr>`).join("") : `<tr><td colspan="6" class="empty">All caught up 🙏</td></tr>`;
-  } else if (TAB === "stays") {
-    const rows = S.filter(r => (!fs || r.Status === fs) && (!fu || unitsOf(r["Unit No."]).includes(fu)) && (!fy || (r.Arrival || "").startsWith(fy)) && (!q || [r["Name of User"], r["Attending Personnel"], r["Purpose of Use"], r["Stay ID"], r.Ministry].join(" ").toLowerCase().includes(q))).sort((a, b) => (toD(b.Arrival) || 0) - (toD(a.Arrival) || 0));
+  } else if (TAB === "gstays" || TAB === "pstays") {
+    const isG = r => r.Category === GS_CAT;
+    const rows = S.filter(r => (TAB === "gstays" ? isG(r) : !isG(r)) && (!fs || r.Status === fs) && (!fu || unitsOf(r["Unit No."]).includes(fu)) && (!fy || (r.Arrival || "").startsWith(fy)) && (!q || [r["Name of User"], r["Attending Personnel"], r["Purpose of Use"], r["Stay ID"], r.Ministry].join(" ").toLowerCase().includes(q))).sort((a, b) => (toD(b.Arrival) || 0) - (toD(a.Arrival) || 0));
     $("thead").innerHTML = `<tr><th>ID</th><th>Guest</th><th>Unit</th><th>Arrival</th><th>Departure</th><th class="hide-m">Nights</th><th class="hide-m">Personnel / ministry</th><th>Status</th></tr>`;
-    $("tbody").innerHTML = rows.length ? rows.map(r => `<tr class="trow" data-s="${esc(r["Stay ID"])}"><td class="small muted">${esc(r["Stay ID"])}</td><td><b style="font-weight:500">${esc(r["Name of User"])}</b><div class="small muted">${esc(r["Purpose of Use"] || "")}</div></td><td>${esc(r["Unit No."] || "–")}</td><td>${fmtShort(r.Arrival)}</td><td>${fmtShort(r.Departure)}</td><td class="hide-m">${esc(r.Nights)}</td><td class="hide-m small">${esc(r["Attending Personnel"] || r.Ministry || "")}</td><td><span class="pill p-${esc(r.Status)}">${esc(r.Status)}</span></td></tr>`).join("") : `<tr><td colspan="8" class="empty">No stays match.</td></tr>`;
+    $("tbody").innerHTML = rows.length ? rows.map(r => `<tr class="trow" data-s="${esc(r["Stay ID"])}"><td class="small muted">${esc(r["Stay ID"])}</td><td><b style="font-weight:500">${esc(r["Name of User"])}</b><div class="small muted">${esc(r["Purpose of Use"] || "")}</div></td><td>${esc(r["Unit No."] || "–")}</td><td>${fmtShort(r.Arrival)}</td><td>${fmtShort(r.Departure)}</td><td class="hide-m">${esc(r.Nights)}</td><td class="hide-m small">${esc(r["Attending Personnel"] || r.Ministry || "")}</td><td><span class="pill p-${esc(r.Status)}">${esc(r.Status)}</span></td></tr>`).join("") : `<tr><td colspan="8" class="empty">${TAB === "pstays" ? "No paid stays yet. New member and non-member stays will appear here." : "No stays match."}</td></tr>`;
   } else {
     const rows = HS.filter(h => (!fs || h.Status === fs) && (!q || [h["Guest Name"], h["Attending Personnel"], h["Hosting ID"]].join(" ").toLowerCase().includes(q))).sort((a, b) => String(b["Event Date"] || b["Created At"]).localeCompare(String(a["Event Date"] || a["Created At"])));
     const stayOf = h => h["Stay Option"] || (h["Needs Apartment"] && h["Needs Apartment"] !== "Not sure yet" ? (h["Needs Apartment"] === "Yes" ? "Apartment (planned)" : "No apartment") : "–");
@@ -399,72 +414,96 @@ function updH(rec) { const i = HS.findIndex(x => x["Hosting ID"] === rec["Hostin
 $("newHostBtn").onclick = () => openHost(null);
 
 /* ---------- Reports ---------- */
-$("printBtn").onclick = () => window.print();
-$("showAll").onclick = () => setAllSections(false); $("hideAll").onclick = () => setAllSections(true);
-const showBackup = () => { $("backupInfo").textContent = LAST_BACKUP ? `Last backup: ${fmtShort(LAST_BACKUP.at)}${LAST_BACKUP.auto ? " (auto)" : ""}` : "No backup yet" };
-$("backupBtn").onclick = async () => { $("backupBtn").disabled = true; $("backupInfo").textContent = "Backing up…"; try { const j = await call("backup"); LAST_BACKUP = j.backup; showBackup(); toast("Backup saved to Drive") } catch (e) { toast(e.message); showBackup() } finally { $("backupBtn").disabled = false } };
-$("rYear").onchange = renderReport;
-function renderReport() {
+const SECTIONS = [["sum", "📊 Summary"], ["names", "👥 Guests by category"], ["all", "📋 Stay details"], ["unit", "🚪 By unit"], ["min", "⛪ By ministry"], ["host", "🎤 Speaker schedule"]];
+const showBackup = () => { };
+const hiddenSet = () => new Set(JSON.parse(store.get("tow-rep-hidden2") || "[]"));
+function setPreset(v) {
+  const now = new Date(), y = now.getFullYear(); let a, b;
+  if (v === "thisYear") { a = new Date(y, 0, 1); b = new Date(y, 11, 31) }
+  else if (v === "lastYear") { a = new Date(y - 1, 0, 1); b = new Date(y - 1, 11, 31) }
+  else if (v === "thisQuarter") { const q = Math.floor(now.getMonth() / 3); a = new Date(y, q * 3, 1); b = new Date(y, q * 3 + 3, 0) }
+  else if (v === "thisMonth") { a = new Date(y, now.getMonth(), 1); b = new Date(y, now.getMonth() + 1, 0) }
+  else if (v === "lastMonth") { a = new Date(y, now.getMonth() - 1, 1); b = new Date(y, now.getMonth(), 0) }
+  else if (v.startsWith("y:")) { const yy = +v.slice(2); a = new Date(yy, 0, 1); b = new Date(yy, 11, 31) }
+  else if (v === "all") { const ds = S.map(r => toD(r.Arrival)).filter(Boolean).sort((x, z) => x - z); a = ds[0] || new Date(y, 0, 1); b = ds[ds.length - 1] || new Date(y, 11, 31); const hd = HS.map(h => toD(h["Event Date"])).filter(Boolean); hd.forEach(d => { if (d > b) b = d; if (d < a) a = d }) }
+  else return;
+  $("rFrom").value = iso(a); $("rTo").value = iso(b);
+}
+function initReportTools() {
+  if ($("rPreset").options.length) return;
   const years = [...new Set(S.map(r => (r.Arrival || "").slice(0, 4)).filter(Boolean))].sort().reverse();
-  if (!$("rYear").options.length) { $("rYear").innerHTML = years.map(y => `<option>${y}</option>`).join(""); $("rYear").value = String(new Date().getFullYear()); if (!$("rYear").value) $("rYear").value = years[0] || "" }
-  const y = $("rYear").value;
-  const rows = S.filter(r => (r.Arrival || "").startsWith(y) && !["Cancelled", "Requested"].includes(r.Status)).sort((a, b) => toD(a.Arrival) - toD(b.Arrival));
-  const sum = (arr, k) => arr.reduce((a, r) => a + (+r[k] || 0), 0);
+  $("rPreset").innerHTML = [["thisYear", "This year"], ["lastYear", "Last year"], ["thisQuarter", "This quarter"], ["thisMonth", "This month"], ["lastMonth", "Last month"], ...years.map(y => ["y:" + y, "Year " + y]), ["all", "All time (accumulated)"], ["custom", "Custom dates"]].map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+  setPreset("thisYear");
+  $("rPreset").onchange = () => { setPreset($("rPreset").value); renderReport() };
+  ["rFrom", "rTo"].forEach(id => $(id).onchange = () => { $("rPreset").value = "custom"; renderReport() });
+  $("rCat").onchange = renderReport;
+  $("printBtn").onclick = () => window.print();
+  $("csvBtn").onclick = () => reportCSV();
+  $("xlsBtn2").onclick = () => $("xlsBtn").click();
+}
+function reportData() {
+  const A = toD($("rFrom").value), B = toD($("rTo").value); if (B) B.setHours(23, 59, 59);
+  const cat = $("rCat").value, isG = r => r.Category === GS_CAT;
+  const inP = d => { const x = toD(d); return x && (!A || x >= A) && (!B || x <= B) };
+  const rows = S.filter(r => !["Cancelled", "Requested"].includes(r.Status) && inP(r.Arrival) && (cat === "all" || (cat === "g" ? isG(r) : !isG(r)))).sort((a, b) => toD(a.Arrival) - toD(b.Arrival));
+  const hs = cat === "p" ? [] : HS.filter(h => inP(h["Event Date"] || h.Arrival)).sort((a, b) => String(a["Event Date"]).localeCompare(String(b["Event Date"])));
+  const label = `${fmtDate($("rFrom").value)} – ${fmtDate($("rTo").value)}`;
+  const catLabel = { all: "All stays", g: "Guest speaker stays", p: "Paid stays" }[cat];
+  return { rows, hs, label, catLabel };
+}
+const fmtDate = s => { const d = toD(s); return d ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "" };
+const sumOf = (arr, k) => arr.reduce((a, r) => a + (+r[k] || 0), 0);
+function renderReport() {
+  initReportTools();
+  const hidden = hiddenSet();
+  $("rChips").innerHTML = SECTIONS.map(([k, l]) => `<button class="chip ${hidden.has(k) ? "" : "on"}" data-k="${k}">${l}</button>`).join("");
+  document.querySelectorAll("#rChips .chip").forEach(c => c.onclick = () => { const h = hiddenSet(); h.has(c.dataset.k) ? h.delete(c.dataset.k) : h.add(c.dataset.k); store.set("tow-rep-hidden2", JSON.stringify([...h])); renderReport() });
+  const { rows, hs, label, catLabel } = reportData();
   const tbl = (head, body) => `<table><thead><tr>${head.map((h, i) => `<th class="${i ? "n" : ""}">${h}</th>`).join("")}</tr></thead><tbody>${body.map(r => `<tr>${r.map((c, i) => `<td class="${i ? "n" : ""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-  const byUnit = [1, 2, 3, 4].map(u => { const a = rows.filter(r => unitsOf(r["Unit No."]).includes(String(u))); return [`Unit ${u}`, a.length, sum(a, "Nights"), sum(a, "No. of Guests")] });
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const byMonth = months.map((m, i) => { const a = rows.filter(r => toD(r.Arrival).getMonth() === i); return [m, a.length, sum(a, "Nights")] });
-  const maxN = Math.max(1, ...byMonth.map(x => x[2]));
-  const byCat = ALL_CATS.map(c => { const a = rows.filter(r => r.Category === c); return [esc(c), a.length, sum(a, "Nights"), "RM" + sum(a, "Love Gift (RM)").toLocaleString()] }).filter(x => x[1]);
-  const mins = [...new Set(rows.map(r => r.Ministry).filter(Boolean))].sort();
-  const byMin = mins.map(m => { const a = rows.filter(r => r.Ministry === m); return [esc(m), a.length, sum(a, "Nights"), "RM" + sum(a, "Love Gift (RM)").toLocaleString()] });
-  const hs = HS.filter(h => String(h["Event Date"] || h.Arrival || h["Created At"] || "").startsWith(y)).sort((a, b) => String(a["Event Date"]).localeCompare(String(b["Event Date"])));
   const pl = (n, one, many) => `${n} ${n === 1 ? one : (many || one + "s")}`;
-  const hidden = new Set(JSON.parse(store.get("tow-rep-hidden") || "[]"));
-  const EYE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
-  const EYE_OFF = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-  const sec = (key, icon, title, color, count, body, wide) => `<section class="sec${hidden.has(key) ? " collapsed" : ""}${wide ? " wide" : ""}" data-key="${key}" style="--accent:${color}">
-      <div class="sech"><span class="ic">${icon}</span><span class="st">${title}</span>${count !== "" ? `<span class="cnt">${count}</span>` : ""}<button class="eye no-print" title="Hide / show this section">${hidden.has(key) ? EYE_OFF : EYE}</button></div>
-      <div class="secb">${body}</div></section>`;
+  const g = rows.filter(r => r.Category === GS_CAT), pd = rows.filter(r => r.Category !== GS_CAT);
+  const line = (n, a) => [n, a.length, sumOf(a, "Nights"), sumOf(a, "No. of Guests"), "RM" + sumOf(a, "Love Gift (RM)").toLocaleString()];
+  const sumBody = `<div class="kpis"><div class="kpi"><span>🏠 Bookings</span><b>${rows.length}</b></div><div class="kpi"><span>🌙 Nights</span><b>${sumOf(rows, "Nights")}</b></div><div class="kpi"><span>👥 Guests</span><b>${sumOf(rows, "No. of Guests")}</b></div><div class="kpi"><span>💝 Love gifts pledged</span><b>RM${sumOf(rows, "Love Gift (RM)").toLocaleString()}</b></div></div>
+    <div style="margin-top:12px">${tbl(["Type", "Bookings", "Nights", "Guests", "Love gifts"], [line("🎤 Guest speaker stays", g), line("🏠 Paid stays", pd), ...PAID_CATS.map(c => line("&nbsp;&nbsp;&nbsp;· " + esc(c), pd.filter(r => r.Category === c))).filter(x => x[1]), ["<b>Total</b>", `<b>${rows.length}</b>`, `<b>${sumOf(rows, "Nights")}</b>`, `<b>${sumOf(rows, "No. of Guests")}</b>`, `<b>RM${sumOf(rows, "Love Gift (RM)").toLocaleString()}</b>`]])}</div>
+    <p class="small muted" style="margin:6px 0 0">A booking is one stay (one group). Guests = number of people. Love gifts are what was pledged.</p>`;
+  const namesBody = ALL_CATS.map(c => { const a = rows.filter(r => r.Category === c); if (!a.length) return ""; return `<h4 style="font:600 15px 'Cormorant Garamond',serif;color:var(--brown);margin:8px 0 4px">${esc(c)} · ${pl(a.length, "stay")}</h4><div class="gl">${a.map(r => `<div><b style="font-weight:500">${esc(r["Name of User"])}</b> <span class="d">· ${fmtDate(r.Arrival)}–${fmtDate(r.Departure)} · Unit ${esc(r["Unit No."] || "–")} · ${r.Nights || 0} night${+r.Nights === 1 ? "" : "s"}${r.Ministry ? " · " + esc(r.Ministry) : ""}</span></div>`).join("")}</div>` }).join("") || '<p class="muted small">No stays in this period.</p>';
+  const byUnit = [1, 2, 3, 4].map(u => { const a = rows.filter(r => unitsOf(r["Unit No."]).includes(String(u))); return [`Unit ${u}`, a.length, sumOf(a, "Nights"), sumOf(a, "No. of Guests")] });
+  const mins = [...new Set(rows.map(r => r.Ministry).filter(Boolean))].sort();
+  const byMin = mins.map(m => { const a = rows.filter(r => r.Ministry === m); return [esc(m), a.length, sumOf(a, "Nights"), "RM" + sumOf(a, "Love Gift (RM)").toLocaleString()] });
+  const sec = (key, icon, title, color, count, body, wide) => hidden.has(key) ? "" : `<section class="sec${wide ? " wide" : ""}" data-key="${key}" style="--accent:${color}">
+      <div class="sech"><span class="ic">${icon}</span><span class="st">${title}</span>${count !== "" ? `<span class="cnt">${count}</span>` : ""}</div><div class="secb">${body}</div></section>`;
   $("report").innerHTML = `<div class="rep">
-    <div class="head"><div><div class="eyebrow">Tabernacle of Worship</div><h2 style="margin:4px 0 0">Apartment Stay Report ${esc(y)}</h2><div class="small muted">Excludes cancelled stays and requests still waiting for a unit · Prepared ${fmtShort(iso(new Date()))}</div></div><img src="logo-full.jpg" alt="TOW"></div>
-    <div class="kpis"><div class="kpi"><span>🏠 Stays</span><b>${rows.length}</b></div><div class="kpi"><span>🌙 Nights</span><b>${sum(rows, "Nights")}</b></div><div class="kpi"><span>👥 Guests</span><b>${sum(rows, "No. of Guests")}</b></div><div class="kpi"><span>💝 Love gifts pledged</span><b>RM${sum(rows, "Love Gift (RM)").toLocaleString()}</b></div></div>
+    <div class="head"><div><div class="eyebrow">Tabernacle of Worship</div><h2 style="margin:4px 0 0">Apartment Stay Report</h2><div class="small" style="color:var(--brown)">${esc(label)} · ${esc(catLabel)}</div><div class="small muted">Excludes cancelled stays and requests still waiting for a unit · Prepared ${fmtShort(iso(new Date()))}</div></div><img src="logo-full.jpg" alt="TOW"></div>
     <div class="secgrid">
-    ${sec("all", "📋", "Stay details (who stayed)", "#6b4f33", pl(rows.length, "stay"), stayDetails(rows), true)}
-    ${sec("unit", "🚪", "By unit", "#9a7d3f", "4 units", tbl(["Unit", "Stays", "Nights", "Guests"], byUnit) + '<p class="small muted" style="margin:6px 0 0">A stay using two units counts under each unit.</p>')}
-    ${sec("month", "📅", "By month", "#5f8a68", pl(rows.length, "stay"), tbl(["Month", "Stays", "Nights", ""], byMonth.map(([m, s, n]) => [m, s, n, `<div class="mbar" style="width:${Math.round(n / maxN * 100)}%;min-width:${n ? 4 : 0}px"></div>`])))}
-    ${sec("cat", "🏷️", "By guest category", "#5a7896", pl(byCat.length, "category", "categories"), byCat.length ? tbl(["Category", "Stays", "Nights", "Love gifts"], byCat) : '<p class="muted small">No stays.</p>')}
-    ${sec("min", "⛪", "By ministry", "#a0674b", pl(byMin.length, "ministry", "ministries"), byMin.length ? tbl(["Ministry", "Stays", "Nights", "Love gifts"], byMin) : '<p class="muted small">No paid stays by ministry yet.</p>')}
-    ${sec("host", "🎤", "Guest speakers hosted", "#7b6a9c", hs.length, hs.length ? tbl(["Guest", "Date", "PIC", "Stay", "Status"], hs.map(h => [esc(h["Guest Name"]) + (h["Church / Ministry From"] ? `<div class="small muted">${esc(h["Church / Ministry From"])}</div>` : ""), esc(fmtShort(h["Event Date"]) || h["Event Date(s)"] || ""), esc(h["Attending Personnel"] || ""), esc(h["Stay Option"] || h["Needs Apartment"] || ""), esc(h.Status || "")])).replace(/class="n"/g, "") : '<p class="muted small">None recorded through the hosting checklist this year.</p>', true)}
-    </div>
+    ${sec("sum", "📊", "Summary", "#9a7d3f", "", sumBody, true)}
+    ${sec("names", "👥", "Guests by category", "#5a7896", pl(rows.length, "stay"), namesBody, true)}
+    ${sec("all", "📋", "Stay details", "#6b4f33", pl(rows.length, "stay"), stayDetails(rows), true)}
+    ${sec("unit", "🚪", "By unit", "#9a7d3f", "4 units", tbl(["Unit", "Bookings", "Nights", "Guests"], byUnit) + '<p class="small muted" style="margin:6px 0 0">Bookings = number of stays in that unit. A stay using two units counts under each.</p>')}
+    ${sec("min", "⛪", "By ministry (paid stays)", "#a0674b", pl(byMin.length, "ministry", "ministries"), byMin.length ? tbl(["Ministry", "Bookings", "Nights", "Love gifts"], byMin) : '<p class="muted small">No paid stays by ministry in this period.</p>')}
+    ${sec("host", "🎤", "Speaker schedule", "#7b6a9c", hs.length, hs.length ? tbl(["Guest", "Date", "PIC", "Stay", "Status"], hs.map(h => [esc(h["Guest Name"]) + (h["Church / Ministry From"] ? `<div class="small muted">${esc(h["Church / Ministry From"])}</div>` : ""), esc(fmtDate(h["Event Date"]) || h["Event Date(s)"] || ""), esc(h["Attending Personnel"] || ""), esc(h["Stay Option"] || h["Needs Apartment"] || ""), esc(h.Status || "")])).replace(/class="n"/g, "") : '<p class="muted small">No guest speakers scheduled in this period.</p>', true)}
+    </div>${hidden.size === SECTIONS.length ? '<p class="muted center">Pick at least one section under “Include”.</p>' : ""}
   </div>`;
-  document.querySelectorAll("#report .sec").forEach(el => el.querySelector(".eye").onclick = () => {
-    const k = el.dataset.key; el.classList.toggle("collapsed");
-    if (el.classList.contains("collapsed")) hidden.add(k); else hidden.delete(k);
-    store.set("tow-rep-hidden", JSON.stringify([...hidden])); el.querySelector(".eye").innerHTML = el.classList.contains("collapsed") ? EYE_OFF : EYE;
-  });
 }
 /* ---------- CSV export ---------- */
 function downloadCSV(name, rows) {
-  const csv = rows.map(r => r.map(v => { const s = String(v ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }).join(",")).join("\r\n");
-  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const csv = rows.map(r => r.map(v => { const s = String(v ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim(); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }).join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 500);
 }
-function reportCSV(y) {
-  y = y || $("rYear").value || String(new Date().getFullYear());
-  const rows = S.filter(r => (r.Arrival || "").startsWith(y) && !["Cancelled", "Requested"].includes(r.Status)).sort((a, b) => toD(a.Arrival) - toD(b.Arrival));
-  const sum = (arr, k) => arr.reduce((a, r) => a + (+r[k] || 0), 0);
-  const out = [[`TOW Apartment Stay Report ${y}`], [`Prepared ${fmtShort(iso(new Date()))}`, "Excludes cancelled stays and requests waiting for a unit"], [],
-    ["SUMMARY"], ["Stays", "Nights", "Guests", "Love gifts pledged (RM)"], [rows.length, sum(rows, "Nights"), sum(rows, "No. of Guests"), sum(rows, "Love Gift (RM)")], [],
-    ["BY UNIT"], ["Unit", "Stays", "Nights", "Guests"], ...[1, 2, 3, 4].map(u => { const a = rows.filter(r => unitsOf(r["Unit No."]).includes(String(u))); return [`Unit ${u}`, a.length, sum(a, "Nights"), sum(a, "No. of Guests")] }), [],
-    ["BY MONTH"], ["Month", "Stays", "Nights"], ...["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, i) => { const a = rows.filter(r => toD(r.Arrival).getMonth() === i); return [m, a.length, sum(a, "Nights")] }), [],
-    ["BY GUEST CATEGORY"], ["Category", "Stays", "Nights", "Love gifts (RM)"], ...ALL_CATS.map(c => { const a = rows.filter(r => r.Category === c); return [c, a.length, sum(a, "Nights"), sum(a, "Love Gift (RM)")] }), [],
-    ["BY MINISTRY"], ["Ministry", "Stays", "Nights", "Love gifts (RM)"], ...[...new Set(rows.map(r => r.Ministry).filter(Boolean))].sort().map(m => { const a = rows.filter(r => r.Ministry === m); return [m, a.length, sum(a, "Nights"), sum(a, "Love Gift (RM)")] }), [],
-    ["STAY DETAILS"], ["Stay ID", "Guest", "Main guest", "Purpose", "Category", "Ministry", "Approved by", "Attending Personnel", "Contact", "Unit", "Check-in", "Check-out", "Nights", "Guests", "Love gift (RM)", "Status", "Notes"],
-    ...rows.map(r => [r["Stay ID"], r["Name of User"], r["Main Guest"], r["Purpose of Use"], r.Category, r.Ministry, r["Approved By"], r["Attending Personnel"], r["Contact No."], r["Unit No."], fmtShort(r.Arrival), fmtShort(r.Departure), r.Nights, r["No. of Guests"], r["Love Gift (RM)"] || 0, r.Status, [r["Special Arrangement"], r["Additional Notes"]].filter(Boolean).join(" · ")])];
-  downloadCSV(`TOW-Apartment-Report-${y}.csv`, out);
+function reportCSV() {
+  const { rows, hs, label, catLabel } = reportData(), hidden = hiddenSet();
+  const g = rows.filter(r => r.Category === GS_CAT), pd = rows.filter(r => r.Category !== GS_CAT);
+  const line = (n, a) => [n, a.length, sumOf(a, "Nights"), sumOf(a, "No. of Guests"), sumOf(a, "Love Gift (RM)")];
+  let out = [["TOW Apartment Stay Report"], [label, catLabel], [`Prepared ${fmtShort(iso(new Date()))}`, "Excludes cancelled stays and requests waiting for a unit"], []];
+  if (!hidden.has("sum")) out.push(["SUMMARY"], ["Type", "Bookings", "Nights", "Guests", "Love gifts (RM)"], line("Guest speaker stays", g), line("Paid stays", pd), ...PAID_CATS.map(c => line("  " + c, pd.filter(r => r.Category === c))).filter(x => x[1]), line("Total", rows), []);
+  if (!hidden.has("names")) { out.push(["GUESTS BY CATEGORY"], ["Category", "Guest", "Check-in", "Check-out", "Unit", "Nights", "Ministry"]); ALL_CATS.forEach(c => rows.filter(r => r.Category === c).forEach(r => out.push([c, r["Name of User"], fmtDate(r.Arrival), fmtDate(r.Departure), r["Unit No."], r.Nights, r.Ministry]))); out.push([]) }
+  if (!hidden.has("all")) out.push(["STAY DETAILS"], ["Stay ID", "Guest", "Main guest", "Purpose", "Category", "Ministry", "Approved by", "Attending Personnel", "Contact", "Unit", "Check-in", "Check-out", "Nights", "Guests", "Love gift (RM)", "Status", "Notes"],
+    ...rows.map(r => [r["Stay ID"], r["Name of User"], r["Main Guest"], r["Purpose of Use"], r.Category, r.Ministry, r["Approved By"], r["Attending Personnel"], r["Contact No."], r["Unit No."], fmtShort(r.Arrival), fmtShort(r.Departure), r.Nights, r["No. of Guests"], r["Love Gift (RM)"] || 0, r.Status, [r["Special Arrangement"], r["Additional Notes"]].filter(Boolean).join(" · ")]), []);
+  if (!hidden.has("unit")) out.push(["BY UNIT"], ["Unit", "Bookings", "Nights", "Guests"], ...[1, 2, 3, 4].map(u => { const a = rows.filter(r => unitsOf(r["Unit No."]).includes(String(u))); return [`Unit ${u}`, a.length, sumOf(a, "Nights"), sumOf(a, "No. of Guests")] }), []);
+  if (!hidden.has("min")) out.push(["BY MINISTRY (PAID STAYS)"], ["Ministry", "Bookings", "Nights", "Love gifts (RM)"], ...[...new Set(rows.map(r => r.Ministry).filter(Boolean))].sort().map(m => { const a = rows.filter(r => r.Ministry === m); return [m, a.length, sumOf(a, "Nights"), sumOf(a, "Love Gift (RM)")] }), []);
+  if (!hidden.has("host")) out.push(["SPEAKER SCHEDULE"], ["Hosting ID", "Guest", "From", "Date", "PIC", "Stay", "Status"], ...hs.map(h => [h["Hosting ID"], h["Guest Name"], h["Church / Ministry From"], fmtDate(h["Event Date"]) || h["Event Date(s)"], h["Attending Personnel"], h["Stay Option"] || h["Needs Apartment"], h.Status]));
+  downloadCSV(`TOW-Apartment-Report-${$("rFrom").value}-to-${$("rTo").value}.csv`, out);
 }
-$("csvBtn").onclick = () => reportCSV();
 
 /* ---------- Admin tab ---------- */
 function renderAdmin() {
@@ -476,9 +515,6 @@ function renderAdmin() {
     <div class="box" style="--accent:#9a7d3f"><h3>👤 Ministry Heads &amp; passcodes</h3><p>Every head has their own passcode. It stamps their name on the member's form as their digital approval. Edit heads or numbers in the sheet's <b>Ministries</b> tab.</p>
       <div class="url" style="margin-bottom:10px"><span class="small muted">Page for all heads:</span><code>${esc(headUrl)}</code><button class="btn sm" data-copy="${esc(headUrl)}">Copy</button><a class="btn sm" target="_blank" rel="noopener" href="${esc(headUrl)}">Open</a></div>
       <div style="overflow-x:auto"><table><thead><tr><th>Ministry Head</th><th>Ministries</th><th>Passcode</th><th></th></tr></thead><tbody>${heads.map((h, i) => `<tr><td><b style="font-weight:500">${esc(h.head)}</b><div class="small muted">${esc(h.whatsapp || "No WhatsApp no.")}</div></td><td class="small">${h.ministries.map(esc).join("<br>")}</td><td><span class="code" data-i="${i}" style="font:500 14px Jost;letter-spacing:.12em">••••••</span> <button class="btn sm icon showc" data-i="${i}" title="Show / hide" style="width:30px;height:30px">👁</button></td><td><div class="btns"><a class="btn sm" target="_blank" rel="noopener" href="${esc(waLink(h.whatsapp, headMsg(h)))}">💬 Send link &amp; code</a><button class="btn sm newc" data-h="${esc(h.head)}" title="Make a new passcode (the old one stops working)">↻ New code</button></div></td></tr>`).join("")}</tbody></table></div></div>
-    <div class="box" style="--accent:#5f8a68"><h3>🖨 Reports &amp; exports</h3><p>View the report first, then print it as an A4 PDF or download it as CSV.</p>
-      <div class="btns" style="align-items:center"><select id="admYear" style="width:auto">${years.map(y => `<option${y === String(new Date().getFullYear()) ? " selected" : ""}>${y}</option>`).join("")}</select>
-      <button class="btn sm" id="admView">👁 View report</button><button class="btn sm pri" id="admPdf">🖨 PDF (A4)</button><button class="btn sm" id="admCsv">⬇ Report CSV</button><button class="btn sm" id="admXls">⬇ All data (Excel)</button></div></div>
     <div class="box" style="--accent:#a0674b"><h3>☁️ Backup</h3><p>A full copy is saved to Drive every night (TOW Apartment Records → Backups, latest 30 kept).</p>
       <div class="btns" style="align-items:center"><button class="btn sm" id="admBackup">☁️ Back up now</button><span class="small muted" id="admBackupInfo">${LAST_BACKUP ? "Last backup: " + fmtShort(LAST_BACKUP.at) + (LAST_BACKUP.auto ? " (auto)" : "") : "No backup yet"}</span>${LAST_BACKUP && LAST_BACKUP.url ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(LAST_BACKUP.url)}">Open last backup</a>` : ""}</div></div>
   </div>`;
@@ -488,11 +524,7 @@ function renderAdmin() {
     if (b.dataset.c !== "1") { b.dataset.c = "1"; b.textContent = "Tap again to confirm"; setTimeout(() => { b.dataset.c = ""; b.textContent = "↻ New code" }, 3000); return }
     try { const j = await call("newHeadCode", { head: b.dataset.h }); MINS = j.ministries; renderAdmin(); toast("New passcode made. Send it to the Ministry Head.") } catch (e) { }
   });
-  $("admView").onclick = () => { const y = $("admYear").value; TAB = "reports"; render(); $("rYear").value = y; renderReport() };
-  $("admPdf").onclick = () => { const y = $("admYear").value; TAB = "reports"; render(); $("rYear").value = y; renderReport(); setTimeout(() => window.print(), 300) };
-  $("admCsv").onclick = () => reportCSV($("admYear").value);
-  $("admXls").onclick = () => $("xlsBtn").click();
-  $("admBackup").onclick = async () => { $("admBackup").disabled = true; try { const j = await call("backup"); LAST_BACKUP = j.backup; showBackup(); renderAdmin() } catch (e) { $("admBackup").disabled = false } };
+  $("admBackup").onclick = async () => { $("admBackup").disabled = true; try { const j = await call("backup"); LAST_BACKUP = j.backup; renderAdmin() } catch (e) { $("admBackup").disabled = false } };
 }
 
 function stayDetails(rows) {
@@ -509,7 +541,6 @@ function stayDetails(rows) {
   });
   return html + "</tbody></table></div>";
 }
-function setAllSections(hide) { const keys = ["all", "unit", "month", "cat", "min", "host"]; store.set("tow-rep-hidden", JSON.stringify(hide ? keys : [])); renderReport() }
 
 /* ---------- Excel ---------- */
 $("xlsBtn").onclick = () => {
@@ -519,6 +550,9 @@ $("xlsBtn").onclick = () => {
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([HEAD, ...rows], { cellDates: true }); ws["!cols"] = HEAD.map(h => ({ wch: /Notes|Preferences|Name|Purpose|Personnel/.test(h) ? 30 : 14 }));
   XLSX.utils.book_append_sheet(wb, ws, "Stay Log");
+  const part = f => { const r = S.filter(f).sort((a, b) => (toD(a.Arrival) || 0) - (toD(b.Arrival) || 0)).map(r => HEAD.map(h => dates.includes(h) ? (toD(r[h]) || "") : (r[h] ?? ""))); const s = XLSX.utils.aoa_to_sheet([HEAD, ...r], { cellDates: true }); s["!cols"] = ws["!cols"]; return s };
+  XLSX.utils.book_append_sheet(wb, part(r => r.Category === GS_CAT), "Guest Speaker Stays");
+  XLSX.utils.book_append_sheet(wb, part(r => r.Category !== GS_CAT), "Paid Stays");
   const HH = ["Hosting ID", "Status", "Guest Name", "Church / Ministry From", "Event Date(s)", "Attending Personnel", "PIC Contact", "Hosting Pastor", "Stay Option", "Arrival", "Departure", "Mode of Travel", "Travel Details", "Transport Needed", "Vehicle Details", "Accompanying Persons", "Apartment Guests", "Dietary & Meal Schedule", "Health Notes", "Account Holder", "Bank Name", "Account Number", "Mobile Number", "Linked Stay ID", "Submitted At", "Sent to Accounts At"];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([HH, ...HS.map(h => HH.map(k => ["Arrival", "Departure", "Submitted At", "Sent to Accounts At"].includes(k) ? (toD(h[k]) || "") : (h[k] ?? "")))], { cellDates: true }), "Hosting");
   XLSX.writeFile(wb, `TOW-Apartment-Stay-Log-${iso(new Date())}.xlsx`, { cellDates: true });

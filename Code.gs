@@ -148,12 +148,27 @@ function doPost(e) {
   } catch (err) { return json_({ ok: false, error: String(err && err.message || err) }); }
 }
 /** Adds any new columns after an update, once per version (no need to run setup again). */
-const SCHEMA = '3';
+const SCHEMA = '4';
 function upgradeSheets_() {
   const p = PropertiesService.getScriptProperties();
   if (p.getProperty('SCHEMA') === SCHEMA) return;
   [STAY, HOST, APPR, MIN].forEach(n => ensureSheet_(n));
+  mirrorTabs_();
   p.setProperty('SCHEMA', SCHEMA);
+}
+/** Two read-only tabs that always show the Stay Log split into guest speaker stays and paid stays. */
+function mirrorTabs_() {
+  const ss = SpreadsheetApp.getActive();
+  const cat = 'Pastors, Guest Speakers & Mission Pastors';
+  [['Guest Speaker Stays', '='], ['Paid Stays', '<>']].forEach(([name, op]) => {
+    let sh = ss.getSheetByName(name);
+    if (!sh) sh = ss.insertSheet(name);
+    sh.getRange('A1').setFormula("=ARRAYFORMULA('Stay Log'!A1:AZ1)");
+    sh.getRange('A2').setFormula("=IFERROR(SORT(FILTER('Stay Log'!A2:AZ, 'Stay Log'!A2:A<>\"\", 'Stay Log'!C2:C" + op + "\"" + cat + "\"), 13, TRUE), \"No stays yet\")");
+    sh.getRange('1:1').setFontWeight('bold').setFontColor('#ffffff').setBackground('#6b4f33');
+    sh.setFrozenRows(1);
+    sh.getRange('A1').setNote('Read-only view of the Stay Log (updates automatically). Make changes in the admin page or the Stay Log tab.');
+  });
 }
 function need_(ok) { if (!ok) throw new Error('Wrong passcode'); }
 

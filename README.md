@@ -80,11 +80,14 @@ In Apps Script, run `setupDailyJobs` once. It turns on:
 3. You get an alert. If the guest is staying in the apartment, a linked stay request appears in **Inbox** for you to assign a unit.
 4. Tap **💼 Send to Accounts** to send the love gift and honorarium bank details to Accounts on WhatsApp.
 
-**Backup and records**
-- **🖨 PDF** on any record opens its PDF in Drive.
-- **⬇ Excel** downloads the Stay Log and Hosting records.
-- **Reports** tab: pick a year, tap 👁 to hide any section you don't need, then **🖨 Print / Save as PDF**. Hidden sections are left out of the printout.
-- The **Summary** tab in the sheet shows stays, nights and love gifts by unit, year, category, ministry and month.
-
-## After changing Code.gs
-Go to **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy**. The URL stays the same.
+**Tabs in the admin page**
+- **Inbox:** new requests and submitted hosting checklists.
+- **🎤 Guest speaker stays** and **🏠 Paid stays:** the same Stay Log, split by category. Your Google Sheet has matching read-only tabs, **Guest Speaker Stays** and **Paid Stays**, which update by themselves.
+- **Speaker schedule:** guest speakers you've entered, with reminder status.
+- **Reports:**
+  - **Period:** This year, Last year, This quarter, This month, Last month, any single year, **All time (accumulated)**, or custom from/to dates.
+  - **Stays:** All, Guest speaker or Paid.
+  - **Include:** Summary, Guests by category, Stay details, By unit, By ministry, Speaker schedule.
+  - Then **Print / Save as PDF (A4)** or **CSV**. Both use the same choices.
+  - There are no separate tabs per year; pick the year or period you need.
+- **⚙ Admin:** Ministry Heads & passcodes, and Backup.
