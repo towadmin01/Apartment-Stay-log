@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>TOW Apartment Stay Log · Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261124f">
+<link rel="stylesheet" href="style.css?v=20261125a">
 <link rel="icon" type="image/png" href="favicon.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -33,7 +33,14 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}
 th{text-align:left;font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);padding:8px}
 td{border-bottom:1px solid #f0e9dc;padding:10px 8px;vertical-align:top}
 td:first-child{white-space:nowrap}
-tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
+tr.trow{cursor:pointer}
+tr.grow td{background:var(--soft);cursor:pointer;padding:9px 10px;border-bottom:1px solid var(--line)}
+tr.grow td{display:table-cell}
+tr.grow td>*{vertical-align:middle}
+tr.grow .geye{display:inline-grid;place-items:center;color:var(--gold);margin-right:8px}
+tr.grow b{font:600 16px "Cormorant Garamond",serif;color:var(--brown)}
+tr.grow .gcnt{margin-left:10px;font-size:11.5px;color:var(--gold);border:1px solid #e6d7b5;border-radius:20px;padding:1px 9px;background:#fff}
+tr.grow.off td{opacity:.75}tr.trow:hover td{background:var(--soft)}
 .pill{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:20px;border:1px solid var(--line);white-space:nowrap;background:#f3f0ea}
 .p-Requested,.p-Submitted{background:#fff2e0;border-color:#efcf9c;color:#8a5a1f}.p-Booked{background:#fff7e6;border-color:#ecd6a6}.p-Confirmed{background:#eef4ea;border-color:#c9dcc0}.p-Checked-in{background:#e8f0f6;border-color:#bcd2e2}.p-Cancelled{background:#f8ebe6;border-color:#e6c4b4;color:var(--warn)}
 .empty{padding:30px;text-align:center;color:var(--muted)}
@@ -148,7 +155,7 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
       <div class="rtool no-print">
         <div class="rrow"><label>Period</label><select id="rPreset"></select><input type="date" id="rFrom"><span class="muted">to</span><input type="date" id="rTo"></div>
         <div class="rrow"><label>Stays</label><select id="rCat"><option value="all">All stays</option><option value="g">🎤 Guest speaker stays</option><option value="p">🏠 Paid stays</option></select></div>
-        <div class="rrow"><label>Include</label><div class="chips" id="rChips"></div></div>
+        <div class="rrow"><label>Sections</label><button class="btn sm" id="showAll">👁 Show all</button><button class="btn sm" id="hideAll">Hide all</button><span class="small muted">Tap 👁 on a section to hide it. Hidden sections are left out of the PDF and CSV.</span></div>
         <div class="rrow"><label></label><button class="btn sm pri" id="printBtn">🖨 Print / Save as PDF (A4)</button><button class="btn sm" id="csvBtn">⬇ CSV</button><button class="btn sm" id="xlsBtn2">⬇ All data (Excel)</button></div>
       </div>
       <div id="report"></div>
@@ -166,8 +173,8 @@ tr.trow{cursor:pointer}tr.trow:hover td{background:var(--soft)}
 <datalist id="unitList"><option>1</option><option>2</option><option>3</option><option>4</option><option>2 &amp; 4</option></datalist>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=20261124f"></script>
-<script src="app.js?v=20261124f"></script>
+<script src="config.js?v=20261125a"></script>
+<script src="app.js?v=20261125a"></script>
 <script>
 let KEY = "", SHEET = null, FOLDER = "", S = [], HS = [], AP = [], MINS = [], SITE = "", TAB = "inbox", cur = null, LAST_BACKUP = null;
 const STAY_STATUS = ["Requested", "Booked", "Confirmed", "Checked-in", "Completed", "Cancelled"];
@@ -235,6 +242,15 @@ function renderTabs() {
   if (FOLDER) { $("driveBtn").href = FOLDER; $("driveBtn").classList.remove("hide") }
 }
 ["q", "fStatus", "fUnit", "fYear"].forEach(id => $(id).addEventListener("input", renderTable));
+const EYE_SVG = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_SVG = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+/** Rows grouped by year, each year with a show/hide eye (remembered on this device). */
+function grouped(tab, rows, dateOf, cols, noun, rowHtml) {
+  const hidden = new Set(JSON.parse(store.get("tow-list-hidden") || "[]"));
+  const years = []; rows.forEach(r => { const y = (String(dateOf(r) || "").slice(0, 4)) || "No date"; let g = years.find(x => x.y === y); if (!g) years.push(g = { y, rows: [] }); g.rows.push(r) });
+  return years.map(g => { const key = tab + ":" + g.y, off = hidden.has(key);
+    return `<tr class="grow${off ? " off" : ""}" data-g="${esc(key)}"><td colspan="${cols}"><span class="geye">${off ? EYE_OFF_SVG : EYE_SVG}</span><b>${esc(g.y)}</b><span class="gcnt">${g.rows.length} ${noun}${g.rows.length === 1 ? "" : "s"}</span>${off ? '<span class="small muted" style="margin-left:auto">hidden · tap to show</span>' : ""}</td></tr>` + (off ? "" : g.rows.map(rowHtml).join("")) }).join("");
+}
 function renderTable() {
   if (TAB === "reports") return renderReport();
   if (TAB === "admin") return renderAdmin();
@@ -249,13 +265,14 @@ function renderTable() {
     const isG = r => r.Category === GS_CAT;
     const rows = S.filter(r => (TAB === "gstays" ? isG(r) : !isG(r)) && (!fs || r.Status === fs) && (!fu || unitsOf(r["Unit No."]).includes(fu)) && (!fy || (r.Arrival || "").startsWith(fy)) && (!q || [r["Name of User"], r["Attending Personnel"], r["Purpose of Use"], r["Stay ID"], r.Ministry].join(" ").toLowerCase().includes(q))).sort((a, b) => (toD(b.Arrival) || 0) - (toD(a.Arrival) || 0));
     $("thead").innerHTML = `<tr><th>ID</th><th>Guest</th><th>Unit</th><th>Arrival</th><th>Departure</th><th class="hide-m">Nights</th><th class="hide-m">Personnel / ministry</th><th>Status</th></tr>`;
-    $("tbody").innerHTML = rows.length ? rows.map(r => `<tr class="trow" data-s="${esc(r["Stay ID"])}"><td class="small muted">${esc(r["Stay ID"])}</td><td><b style="font-weight:500">${esc(r["Name of User"])}</b><div class="small muted">${esc(r["Purpose of Use"] || "")}</div></td><td>${esc(r["Unit No."] || "–")}</td><td>${fmtShort(r.Arrival)}</td><td>${fmtShort(r.Departure)}</td><td class="hide-m">${esc(r.Nights)}</td><td class="hide-m small">${esc(r["Attending Personnel"] || r.Ministry || "")}</td><td><span class="pill p-${esc(r.Status)}">${esc(r.Status)}</span></td></tr>`).join("") : `<tr><td colspan="8" class="empty">${TAB === "pstays" ? "No paid stays yet. New member and non-member stays will appear here." : "No stays match."}</td></tr>`;
+    $("tbody").innerHTML = rows.length ? grouped(TAB, rows, r => r.Arrival, 8, "stay", r => `<tr class="trow" data-s="${esc(r["Stay ID"])}"><td class="small muted">${esc(r["Stay ID"])}</td><td><b style="font-weight:500">${esc(r["Name of User"])}</b><div class="small muted">${esc(r["Purpose of Use"] || "")}</div></td><td>${esc(r["Unit No."] || "–")}</td><td>${fmtShort(r.Arrival)}</td><td>${fmtShort(r.Departure)}</td><td class="hide-m">${esc(r.Nights)}</td><td class="hide-m small">${esc(r["Attending Personnel"] || r.Ministry || "")}</td><td><span class="pill p-${esc(r.Status)}">${esc(r.Status)}</span></td></tr>`) : `<tr><td colspan="8" class="empty">${TAB === "pstays" ? "No paid stays yet. New member and non-member stays will appear here." : "No stays match."}</td></tr>`;
   } else {
     const rows = HS.filter(h => (!fs || h.Status === fs) && (!q || [h["Guest Name"], h["Attending Personnel"], h["Hosting ID"]].join(" ").toLowerCase().includes(q))).sort((a, b) => String(b["Event Date"] || b["Created At"]).localeCompare(String(a["Event Date"] || a["Created At"])));
     const stayOf = h => h["Stay Option"] || (h["Needs Apartment"] && h["Needs Apartment"] !== "Not sure yet" ? (h["Needs Apartment"] === "Yes" ? "Apartment (planned)" : "No apartment") : "–");
     $("thead").innerHTML = `<tr><th>ID</th><th>Guest speaker</th><th>Date</th><th class="hide-m">PIC</th><th class="hide-m">Stay</th><th class="hide-m">Reminders</th><th>Status</th></tr>`;
-    $("tbody").innerHTML = rows.length ? rows.map(h => `<tr class="trow" data-h="${esc(h["Hosting ID"])}"><td class="small muted">${esc(h["Hosting ID"])}</td><td><b style="font-weight:500">${esc(h["Guest Name"])}</b><div class="small muted">${esc(h["Church / Ministry From"] || "")}</div></td><td>${esc(fmtShort(h["Event Date"]) || h["Event Date(s)"] || "")}${h["Event Date(s)"] && h["Event Date"] ? `<div class="small muted">${esc(h["Event Date(s)"])}</div>` : ""}</td><td class="hide-m">${esc(h["Attending Personnel"] || "")}</td><td class="hide-m small">${esc(stayOf(h))}${h["Linked Stay ID"] ? " · " + esc(h["Linked Stay ID"]) : ""}</td><td class="hide-m small">${h["Reminder 14d Sent"] ? "14d ✓" : "14d –"} · ${h["Reminder 3d Sent"] ? "3d ✓" : "3d –"}</td><td><span class="pill p-${esc(String(h.Status).replace(/ /g, "-"))}">${esc(h.Status)}</span></td></tr>`).join("") : `<tr><td colspan="7" class="empty">No guest speakers yet. Use “+ Guest speaker” to add this quarter's schedule.</td></tr>`;
+    $("tbody").innerHTML = rows.length ? grouped("hosting", rows, h => h["Event Date"] || h["Created At"], 7, "guest speaker", h => `<tr class="trow" data-h="${esc(h["Hosting ID"])}"><td class="small muted">${esc(h["Hosting ID"])}</td><td><b style="font-weight:500">${esc(h["Guest Name"])}</b><div class="small muted">${esc(h["Church / Ministry From"] || "")}</div></td><td>${esc(fmtShort(h["Event Date"]) || h["Event Date(s)"] || "")}${h["Event Date(s)"] && h["Event Date"] ? `<div class="small muted">${esc(h["Event Date(s)"])}</div>` : ""}</td><td class="hide-m">${esc(h["Attending Personnel"] || "")}</td><td class="hide-m small">${esc(stayOf(h))}${h["Linked Stay ID"] ? " · " + esc(h["Linked Stay ID"]) : ""}</td><td class="hide-m small">${h["Reminder 14d Sent"] ? "14d ✓" : "14d –"} · ${h["Reminder 3d Sent"] ? "3d ✓" : "3d –"}</td><td><span class="pill p-${esc(String(h.Status).replace(/ /g, "-"))}">${esc(h.Status)}</span></td></tr>`) : `<tr><td colspan="7" class="empty">No guest speakers yet. Use “+ Guest speaker” to add this quarter's schedule.</td></tr>`;
   }
+  document.querySelectorAll("tr.grow").forEach(tr => tr.onclick = () => { const h = new Set(JSON.parse(store.get("tow-list-hidden") || "[]")); h.has(tr.dataset.g) ? h.delete(tr.dataset.g) : h.add(tr.dataset.g); store.set("tow-list-hidden", JSON.stringify([...h])); renderTable() });
   document.querySelectorAll("tr.trow").forEach(tr => tr.onclick = () => tr.dataset.s ? openStay(S.find(r => r["Stay ID"] === tr.dataset.s)) : openHost(HS.find(h => h["Hosting ID"] === tr.dataset.h)));
 }
 
@@ -440,6 +457,8 @@ function initReportTools() {
   $("printBtn").onclick = () => window.print();
   $("csvBtn").onclick = () => reportCSV();
   $("xlsBtn2").onclick = () => $("xlsBtn").click();
+  $("showAll").onclick = () => { store.set("tow-rep-hidden2", "[]"); renderReport() };
+  $("hideAll").onclick = () => { store.set("tow-rep-hidden2", JSON.stringify(SECTIONS.map(s => s[0]))); renderReport() };
 }
 function reportData() {
   const A = toD($("rFrom").value), B = toD($("rTo").value); if (B) B.setHours(23, 59, 59);
@@ -456,8 +475,6 @@ const sumOf = (arr, k) => arr.reduce((a, r) => a + (+r[k] || 0), 0);
 function renderReport() {
   initReportTools();
   const hidden = hiddenSet();
-  $("rChips").innerHTML = SECTIONS.map(([k, l]) => `<button class="chip ${hidden.has(k) ? "" : "on"}" data-k="${k}">${l}</button>`).join("");
-  document.querySelectorAll("#rChips .chip").forEach(c => c.onclick = () => { const h = hiddenSet(); h.has(c.dataset.k) ? h.delete(c.dataset.k) : h.add(c.dataset.k); store.set("tow-rep-hidden2", JSON.stringify([...h])); renderReport() });
   const { rows, hs, label, catLabel } = reportData();
   const tbl = (head, body) => `<table><thead><tr>${head.map((h, i) => `<th class="${i ? "n" : ""}">${h}</th>`).join("")}</tr></thead><tbody>${body.map(r => `<tr>${r.map((c, i) => `<td class="${i ? "n" : ""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   const pl = (n, one, many) => `${n} ${n === 1 ? one : (many || one + "s")}`;
@@ -466,12 +483,12 @@ function renderReport() {
   const sumBody = `<div class="kpis"><div class="kpi"><span>🏠 Bookings</span><b>${rows.length}</b></div><div class="kpi"><span>🌙 Nights</span><b>${sumOf(rows, "Nights")}</b></div><div class="kpi"><span>👥 Guests</span><b>${sumOf(rows, "No. of Guests")}</b></div><div class="kpi"><span>💝 Love gifts pledged</span><b>RM${sumOf(rows, "Love Gift (RM)").toLocaleString()}</b></div></div>
     <div style="margin-top:12px">${tbl(["Type", "Bookings", "Nights", "Guests", "Love gifts"], [line("🎤 Guest speaker stays", g), line("🏠 Paid stays", pd), ...PAID_CATS.map(c => line("&nbsp;&nbsp;&nbsp;· " + esc(c), pd.filter(r => r.Category === c))).filter(x => x[1]), ["<b>Total</b>", `<b>${rows.length}</b>`, `<b>${sumOf(rows, "Nights")}</b>`, `<b>${sumOf(rows, "No. of Guests")}</b>`, `<b>RM${sumOf(rows, "Love Gift (RM)").toLocaleString()}</b>`]])}</div>
     <p class="small muted" style="margin:6px 0 0">A booking is one stay (one group). Guests = number of people. Love gifts are what was pledged.</p>`;
-  const namesBody = ALL_CATS.map(c => { const a = rows.filter(r => r.Category === c); if (!a.length) return ""; return `<h4 style="font:600 15px 'Cormorant Garamond',serif;color:var(--brown);margin:8px 0 4px">${esc(c)} · ${pl(a.length, "stay")}</h4><div class="gl">${a.map(r => `<div><b style="font-weight:500">${esc(r["Name of User"])}</b> <span class="d">· ${fmtDate(r.Arrival)}–${fmtDate(r.Departure)} · Unit ${esc(r["Unit No."] || "–")} · ${r.Nights || 0} night${+r.Nights === 1 ? "" : "s"}${r.Ministry ? " · " + esc(r.Ministry) : ""}</span></div>`).join("")}</div>` }).join("") || '<p class="muted small">No stays in this period.</p>';
+  const namesBody = guestsByCategory(rows);
   const byUnit = [1, 2, 3, 4].map(u => { const a = rows.filter(r => unitsOf(r["Unit No."]).includes(String(u))); return [`Unit ${u}`, a.length, sumOf(a, "Nights"), sumOf(a, "No. of Guests")] });
   const mins = [...new Set(rows.map(r => r.Ministry).filter(Boolean))].sort();
   const byMin = mins.map(m => { const a = rows.filter(r => r.Ministry === m); return [esc(m), a.length, sumOf(a, "Nights"), "RM" + sumOf(a, "Love Gift (RM)").toLocaleString()] });
-  const sec = (key, icon, title, color, count, body, wide) => hidden.has(key) ? "" : `<section class="sec${wide ? " wide" : ""}" data-key="${key}" style="--accent:${color}">
-      <div class="sech"><span class="ic">${icon}</span><span class="st">${title}</span>${count !== "" ? `<span class="cnt">${count}</span>` : ""}</div><div class="secb">${body}</div></section>`;
+  const sec = (key, icon, title, color, count, body, wide) => `<section class="sec${wide ? " wide" : ""}${hidden.has(key) ? " collapsed" : ""}" data-key="${key}" style="--accent:${color}">
+      <div class="sech"><span class="ic">${icon}</span><span class="st">${title}</span>${count !== "" ? `<span class="cnt">${count}</span>` : ""}<button class="eye no-print" title="Hide / show this section">${hidden.has(key) ? EYE_OFF_SVG : EYE_SVG}</button></div><div class="secb">${body}</div></section>`;
   $("report").innerHTML = `<div class="rep">
     <div class="head"><div><div class="eyebrow">Tabernacle of Worship</div><h2 style="margin:4px 0 0">Apartment Stay Report</h2><div class="small" style="color:var(--brown)">${esc(label)} · ${esc(catLabel)}</div><div class="small muted">Excludes cancelled stays and requests still waiting for a unit · Prepared ${fmtShort(iso(new Date()))}</div></div><img src="logo-full.jpg" alt="TOW"></div>
     <div class="secgrid">
@@ -481,8 +498,17 @@ function renderReport() {
     ${sec("unit", "🚪", "By unit", "#9a7d3f", "4 units", tbl(["Unit", "Bookings", "Nights", "Guests"], byUnit) + '<p class="small muted" style="margin:6px 0 0">Bookings = number of stays in that unit. A stay using two units counts under each.</p>')}
     ${sec("min", "⛪", "By ministry (paid stays)", "#a0674b", pl(byMin.length, "ministry", "ministries"), byMin.length ? tbl(["Ministry", "Bookings", "Nights", "Love gifts"], byMin) : '<p class="muted small">No paid stays by ministry in this period.</p>')}
     ${sec("host", "🎤", "Speaker schedule", "#7b6a9c", hs.length, hs.length ? tbl(["Guest", "Date", "PIC", "Stay", "Status"], hs.map(h => [esc(h["Guest Name"]) + (h["Church / Ministry From"] ? `<div class="small muted">${esc(h["Church / Ministry From"])}</div>` : ""), esc(fmtDate(h["Event Date"]) || h["Event Date(s)"] || ""), esc(h["Attending Personnel"] || ""), esc(h["Stay Option"] || h["Needs Apartment"] || ""), esc(h.Status || "")])).replace(/class="n"/g, "") : '<p class="muted small">No guest speakers scheduled in this period.</p>', true)}
-    </div>${hidden.size === SECTIONS.length ? '<p class="muted center">Pick at least one section under “Include”.</p>' : ""}
+    </div>
   </div>`;
+  document.querySelectorAll("#report .sec .eye").forEach(b => b.onclick = () => { const k = b.closest(".sec").dataset.key, h = hiddenSet(); h.has(k) ? h.delete(k) : h.add(k); store.set("tow-rep-hidden2", JSON.stringify([...h])); renderReport() });
+}
+function guestsByCategory(rows) {
+  if (!rows.length) return '<p class="muted small">No stays in this period.</p>';
+  let html = `<div style="overflow-x:auto"><table class="det"><thead><tr><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Unit</th><th class="n">Nights</th><th class="n">Pax</th><th>Ministry / PIC</th></tr></thead><tbody>`;
+  ALL_CATS.forEach(c => { const a = rows.filter(r => r.Category === c); if (!a.length) return;
+    html += `<tr class="mrow"><td colspan="7">${esc(c)} <span style="font:400 12px Jost;color:var(--muted)">· ${a.length} stay${a.length === 1 ? "" : "s"} · ${sumOf(a, "Nights")} nights</span></td></tr>`;
+    a.forEach(r => html += `<tr><td><b style="font-weight:500">${esc(r["Name of User"])}</b><div class="small muted">${esc(r["Stay ID"])}</div></td><td class="small">${fmtDate(r.Arrival)}</td><td class="small">${fmtDate(r.Departure)}</td><td>${esc(r["Unit No."] || "–")}</td><td class="n">${r.Nights || 0}</td><td class="n">${esc(r["No. of Guests"] || "–")}</td><td class="small muted">${esc([r.Ministry, r["Attending Personnel"] ? "PIC: " + r["Attending Personnel"] : ""].filter(Boolean).join(" · "))}</td></tr>`) });
+  return html + "</tbody></table></div>";
 }
 /* ---------- CSV export ---------- */
 function downloadCSV(name, rows) {
@@ -514,16 +540,22 @@ function renderAdmin() {
   $("adminWrap").innerHTML = `<div class="adm">
     <div class="box" style="--accent:#9a7d3f"><h3>👤 Ministry Heads &amp; passcodes</h3><p>Every head has their own passcode. It stamps their name on the member's form as their digital approval. Edit heads or numbers in the sheet's <b>Ministries</b> tab.</p>
       <div class="url" style="margin-bottom:10px"><span class="small muted">Page for all heads:</span><code>${esc(headUrl)}</code><button class="btn sm" data-copy="${esc(headUrl)}">Copy</button><a class="btn sm" target="_blank" rel="noopener" href="${esc(headUrl)}">Open</a></div>
-      <div style="overflow-x:auto"><table><thead><tr><th>Ministry Head</th><th>Ministries</th><th>Passcode</th><th></th></tr></thead><tbody>${heads.map((h, i) => `<tr><td><b style="font-weight:500">${esc(h.head)}</b><div class="small muted">${esc(h.whatsapp || "No WhatsApp no.")}</div></td><td class="small">${h.ministries.map(esc).join("<br>")}</td><td><span class="code" data-i="${i}" style="font:500 14px Jost;letter-spacing:.12em">••••••</span> <button class="btn sm icon showc" data-i="${i}" title="Show / hide" style="width:30px;height:30px">👁</button></td><td><div class="btns"><a class="btn sm" target="_blank" rel="noopener" href="${esc(waLink(h.whatsapp, headMsg(h)))}">💬 Send link &amp; code</a><button class="btn sm newc" data-h="${esc(h.head)}" title="Make a new passcode (the old one stops working)">↻ New code</button></div></td></tr>`).join("")}</tbody></table></div></div>
+      <div class="btns" style="margin-bottom:10px;align-items:center"><button class="btn sm" id="iniCodes">✨ Set all codes from initials (e.g. ML001)</button><span class="small muted">Or type your own code for each head (4–12 letters/numbers) and tap Save.</span></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>Ministry Head</th><th>Ministries</th><th>Passcode</th><th></th></tr></thead><tbody>${heads.map((h, i) => `<tr><td><b style="font-weight:500">${esc(h.head)}</b><div class="small muted">${esc(h.whatsapp || "No WhatsApp no.")}</div></td><td class="small">${h.ministries.map(esc).join("<br>")}</td><td><div style="display:flex;gap:6px;align-items:center"><input class="codein" data-h="${esc(h.head)}" value="${esc(h.passcode || "")}" maxlength="12" style="width:110px;padding:7px 9px;font:500 14px Jost;letter-spacing:.08em;text-transform:uppercase"><button class="btn sm savec" data-h="${esc(h.head)}">Save</button></div></td><td><div class="btns"><a class="btn sm" target="_blank" rel="noopener" href="${esc(waLink(h.whatsapp, headMsg(h)))}">💬 Send link &amp; code</a></div></td></tr>`).join("")}</tbody></table></div></div>
     <div class="box" style="--accent:#a0674b"><h3>☁️ Backup</h3><p>A full copy is saved to Drive every night (TOW Apartment Records → Backups, latest 30 kept).</p>
       <div class="btns" style="align-items:center"><button class="btn sm" id="admBackup">☁️ Back up now</button><span class="small muted" id="admBackupInfo">${LAST_BACKUP ? "Last backup: " + fmtShort(LAST_BACKUP.at) + (LAST_BACKUP.auto ? " (auto)" : "") : "No backup yet"}</span>${LAST_BACKUP && LAST_BACKUP.url ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(LAST_BACKUP.url)}">Open last backup</a>` : ""}</div></div>
   </div>`;
   document.querySelectorAll("#adminWrap [data-copy]").forEach(b => b.onclick = e => copyText(b.dataset.copy, e.target));
-  document.querySelectorAll("#adminWrap .showc").forEach(b => b.onclick = () => { const el = document.querySelector(`#adminWrap .code[data-i="${b.dataset.i}"]`), h = heads[+b.dataset.i]; el.textContent = el.textContent.startsWith("•") ? (h.passcode || "—") : "••••••" });
-  document.querySelectorAll("#adminWrap .newc").forEach(b => b.onclick = async () => {
-    if (b.dataset.c !== "1") { b.dataset.c = "1"; b.textContent = "Tap again to confirm"; setTimeout(() => { b.dataset.c = ""; b.textContent = "↻ New code" }, 3000); return }
-    try { const j = await call("newHeadCode", { head: b.dataset.h }); MINS = j.ministries; renderAdmin(); toast("New passcode made. Send it to the Ministry Head.") } catch (e) { }
+  document.querySelectorAll("#adminWrap .savec").forEach(b => b.onclick = async () => {
+    const inp = document.querySelector(`#adminWrap .codein[data-h="${CSS.escape(b.dataset.h)}"]`), code = inp.value.trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,12}$/.test(code)) return toast("Use 4–12 letters or numbers only, e.g. ML001.");
+    try { const j = await call("setHeadCode", { head: b.dataset.h, code }); MINS = j.ministries; renderAdmin(); toast(`Saved · remember to send ${b.dataset.h} the new code`) } catch (e) { setTimeout(renderAdmin, 2500) }
   });
+  document.querySelectorAll("#adminWrap .codein").forEach(i => i.addEventListener("keydown", e => { if (e.key === "Enter") i.nextElementSibling.click() }));
+  $("iniCodes").onclick = async () => {
+    const b = $("iniCodes"); if (b.dataset.c !== "1") { b.dataset.c = "1"; b.textContent = "Tap again: this replaces every head's code"; setTimeout(() => { b.dataset.c = ""; b.textContent = "✨ Set all codes from initials (e.g. ML001)" }, 3500); return }
+    try { const j = await call("initialsCodes"); MINS = j.ministries; renderAdmin(); toast("Codes set from initials. Send each head their new code.") } catch (e) { }
+  };
   $("admBackup").onclick = async () => { $("admBackup").disabled = true; try { const j = await call("backup"); LAST_BACKUP = j.backup; renderAdmin() } catch (e) { $("admBackup").disabled = false } };
 }
 

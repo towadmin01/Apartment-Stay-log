@@ -140,6 +140,8 @@ function doPost(e) {
         case 'createHosting': need_(isAdmin); return json_({ ok: true, hosting: createHosting_(b.data || {}) });
         case 'updateHosting': need_(isAdmin); return json_({ ok: true, hosting: updateHosting_(b.id, b.data || {}) });
         case 'newHeadCode':   need_(isAdmin); return json_({ ok: true, ministries: newHeadCode_(b.head) });
+        case 'setHeadCode':   need_(isAdmin); return json_({ ok: true, ministries: setHeadCode_(b.head, b.code) });
+        case 'initialsCodes': need_(isAdmin); return json_({ ok: true, ministries: initialsCodes_() });
         case 'backup':        need_(isAdmin); return json_({ ok: true, backup: backupNow_(false) });
         case 'makePdf':       need_(isAdmin); return json_({ ok: true, url: (b.type === 'hosting' ? hostingPdf_(b.id) : stayPdf_(b.id)).getUrl() });
         default: throw new Error('Unknown action');
@@ -256,6 +258,27 @@ function ensureHeadCodes_() {
     t.sh.getRange(r._row, t.map['Passcode'] + 1).setNumberFormat('@').setValue(code);
   });
 }
+/** Set your own code for a head, e.g. ML001 (4–12 letters/numbers, not case-sensitive). */
+function setHeadCode_(head, code) {
+  code = String(code || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{4,12}$/.test(code)) throw new Error('Use 4–12 letters or numbers only, e.g. ML001.');
+  const t = table_(MIN);
+  if (t.rows.some(r => r['Ministry Head'] !== head && String(r['Passcode']).toUpperCase() === code)) throw new Error('That code is already used by another Ministry Head.');
+  t.rows.filter(r => r['Ministry Head'] === head).forEach(r => t.sh.getRange(r._row, t.map['Passcode'] + 1).setNumberFormat('@').setValue(code));
+  return ministries_(true);
+}
+/** Gives every head a code from their initials + a running number: ML001, PC002, … */
+function initialsCodes_() {
+  const t = table_(MIN), heads = [];
+  t.rows.forEach(r => { if (r['Ministry'] !== 'Accounts' && heads.indexOf(r['Ministry Head']) < 0) heads.push(r['Ministry Head']); });
+  heads.forEach((h, i) => {
+    const words = String(h).replace(/^(ps|pr|pastor|rev|dr|bro|sis|mr|mrs|ms)\.?\s+/i, '').split(/[\s\/]+/).filter(w => /[A-Za-z]/.test(w));
+    const ini = ((words[0] || 'X')[0] + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase();
+    const code = ini + String(i + 1).padStart(3, '0');
+    t.rows.filter(r => r['Ministry Head'] === h).forEach(r => t.sh.getRange(r._row, t.map['Passcode'] + 1).setNumberFormat('@').setValue(code));
+  });
+  return ministries_(true);
+}
 function newHeadCode_(head) {
   const t = table_(MIN); const used = {}; t.rows.forEach(r => used[String(r['Passcode'])] = 1);
   let code; do { code = String(Math.floor(100000 + Math.random() * 900000)); } while (used[code]);
@@ -278,7 +301,7 @@ function createApproval_(b) {
   const min = t0.rows.find(r => r['Ministry'] === b.ministry);
   if (!min || min['Ministry'] === 'Accounts') throw new Error('Please choose your ministry.');
   const code = String((t0.rows.find(r => r['Ministry Head'] === min['Ministry Head'] && String(r['Passcode'] || '').trim()) || {})['Passcode'] || '').trim();
-  if (!code || String(b.code || '').trim() !== code) throw new Error('That passcode doesn\'t match ' + min['Ministry Head'] + '. Please check with the Church Admin.');
+  if (!code || String(b.code || '').trim().toUpperCase() !== code.toUpperCase()) throw new Error('That passcode doesn\'t match ' + min['Ministry Head'] + '. Please check with the Church Admin.');
   if (!(b.category in RATES) || RATES[b.category] === 0) throw new Error('Please choose a stay category.');
   const cin = toDate_(b.cin), cout = toDate_(b.cout);
   if (!(cin instanceof Date) || !(cout instanceof Date) || cout <= cin) throw new Error('Please check the dates.');
@@ -577,7 +600,7 @@ function hostEvent_(rec) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const endRef = d instanceof Date ? d : (a instanceof Date ? a : day);
   if (!ev && endRef < today) return '';
-  const title = '🎤 Guest speaker · ' + rec['Guest Name'] + (rec['Attending Personnel'] ? ' (PIC: ' + rec['Attending Personnel'] + ')' : '');
+  const title = 'Guest Speaker · ' + rec['Guest Name'] + ' | ' + dayRange_(a instanceof Date ? a : day, d instanceof Date ? d : null) + (rec['Attending Personnel'] ? ' (PIC: ' + rec['Attending Personnel'] + ')' : '');
   const desc = ['Hosting ID: ' + rec['Hosting ID'], 'Event: ' + (rec['Event Date(s)'] || ''), 'From: ' + (rec['Church / Ministry From'] || '-'), 'PIC: ' + (rec['Attending Personnel'] || '-') + (rec['PIC Contact'] ? ' · ' + rec['PIC Contact'] : ''), 'Hosting Pastor: ' + (rec['Hosting Pastor'] || '-'), 'Apartment: ' + (rec['Stay Option'] || rec['Needs Apartment'] || '-'), '', '(TOW Apartment Stay System)'].join('\n');
   const timed = a instanceof Date && d instanceof Date && d > a;
   if (ev) {
@@ -587,6 +610,15 @@ function hostEvent_(rec) {
   }
   ev = timed ? cal.createEvent(title, a, d, { description: desc }) : cal.createAllDayEvent(title, day instanceof Date ? day : a, { description: desc });
   return ev.getId();
+}
+/** "28-29 Nov", "30 Nov-2 Dec", "30 Dec-2 Jan 2027" */
+function dayRange_(a, b) {
+  const f = (d, p) => Utilities.formatDate(d, CONFIG.TZ, p);
+  if (!(a instanceof Date)) return '';
+  if (!(b instanceof Date) || f(a, 'yyyyMMdd') === f(b, 'yyyyMMdd')) return f(a, 'd MMM');
+  if (f(a, 'yyyyMM') === f(b, 'yyyyMM')) return f(a, 'd') + '-' + f(b, 'd MMM');
+  if (f(a, 'yyyy') === f(b, 'yyyy')) return f(a, 'd MMM') + '-' + f(b, 'd MMM');
+  return f(a, 'd MMM') + '-' + f(b, 'd MMM yyyy');
 }
 function fmtDay_(v) { const d = toDate_(v); return d instanceof Date ? Utilities.formatDate(d, CONFIG.TZ, 'EEE d MMM yyyy') : (v || ''); }
 
@@ -599,7 +631,7 @@ function syncEvent_(rec) {
   if (rec['Calendar Event ID']) { try { ev = cal.getEventById(rec['Calendar Event ID']); } catch (e) { ev = null; } }
   const start = toDate_(rec['Arrival']), end = toDate_(rec['Departure']);
   if (NO_CALENDAR.indexOf(rec['Status']) >= 0 || !(start instanceof Date) || !(end instanceof Date) || end <= start) { if (ev) ev.deleteEvent(); return ''; }
-  const title = '🏠 Apartment ' + (rec['Unit No.'] || 'TBC') + ' · ' + (rec['Name of User'] || 'Guest');
+  const title = 'Apartment ' + (rec['Unit No.'] || 'TBC') + ' · ' + (rec['Name of User'] || 'Guest') + ' | ' + dayRange_(start, end);
   const desc = ['Stay ID: ' + rec['Stay ID'], 'Status: ' + rec['Status'], 'Category: ' + (rec['Category'] || '-'), 'Ministry: ' + (rec['Ministry'] || '-'),
     'Attending Personnel: ' + (rec['Attending Personnel'] || '-'), 'Guests: ' + (rec['No. of Guests'] || '-'), '', '(TOW Apartment Stay Log)'].join('\n');
   // Only NEW stays from today onwards get a calendar event. Past stays and stays imported from the old log are
